@@ -28,6 +28,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
+  colorScheme: 'light dark',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#ffffff' },
     { media: '(prefers-color-scheme: dark)', color: '#141414' },
@@ -60,6 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: tagline,
       url: url,
       siteName: "Messer Swipe",
+      images: [{ url: `${basePath}/og.png`, width: 1200, height: 630, alt: "Messer Swipe" }],
       locale: "en_US",
       type: "website",
     },
