@@ -74,6 +74,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 
+// next-themes owns the class; this script only renames the key it reads. `theme` was its default
+// before the canon's `messer-theme` (STANDARD 3.6), so an existing choice is moved once, before
+// next-themes' own blocking script runs, instead of being silently forgotten.
+const themeKeyBoot = `try{var t=localStorage.getItem("messer-theme");if(!t){var o=localStorage.getItem("theme");if(o){localStorage.setItem("messer-theme",o);localStorage.removeItem("theme");t=o}}}catch(e){}`;
+
 export default async function RootLayout({
   children,
 }: {
@@ -84,6 +89,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeKeyBoot }} />
         <Suspense>
           <RuntimeConfigScript />
         </Suspense>
@@ -93,6 +99,7 @@ export default async function RootLayout({
 
         <Providers
           attribute="class"
+          storageKey="messer-theme"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange

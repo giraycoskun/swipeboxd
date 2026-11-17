@@ -63,6 +63,11 @@ would break somebody:
 
 ## Notes from adoption
 
+- The theme key is the canon's `messer-theme`, not next-themes' default `theme`. next-themes still
+  owns the class and its own blocking script; `layout.tsx` only prefixes it with a one-time move of
+  an existing `theme` value onto `messer-theme`, so a returning device keeps its choice instead of
+  falling back to the system. Verified in the built HTML: the migration runs before next-themes'
+  script, which reads `messer-theme`.
 - `next lint` no longer exists in Next 16 and `eslint-config-next` was pinned to `^0.2.4` (a stub), so
   lint had never run. Fixed: `eslint-config-next@16.1.6`, `eslint@^9`, `npx eslint src`.
   Pre-existing `any` and React-Compiler-era rule violations are **warnings**, not errors.
