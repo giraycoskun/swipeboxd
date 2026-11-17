@@ -34,6 +34,25 @@ export function isDeckMode(value: unknown): value is DeckMode {
   return typeof value === "string" && (DECK_MODES as readonly string[]).includes(value);
 }
 
+/**
+ * Kinds a whole-library deck fetch may ask a provider for.
+ *
+ * The episodes deck is not a whole-library scan — it is the unwatched episodes of
+ * the shows you are already watching. An `episode` kind reaching a paged deck
+ * fetch would ask for every episode in the library (10 000 on a big install)
+ * before the first card rendered, which is the gate Phase 7 has to hold. A card is
+ * a show, so `episode`/`season` mean `series` here.
+ */
+export function deckFetchKinds(filters?: { kinds?: MediaKind[] } | null): MediaKind[] {
+  const kinds = filters?.kinds?.length ? filters.kinds : (["movie"] as MediaKind[]);
+  const result = new Set<MediaKind>();
+  for (const kind of kinds) {
+    if (kind === "episode" || kind === "season") result.add("series");
+    else result.add(kind);
+  }
+  return result.size > 0 ? Array.from(result) : (["movie"] as MediaKind[]);
+}
+
 /** Effective mode for a stored filter object; anything unrecognised is movies. */
 export function deckModeOf(filters?: { deckMode?: unknown } | null): DeckMode {
   const mode = filters?.deckMode;

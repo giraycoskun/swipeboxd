@@ -3,6 +3,7 @@ import {
   ProviderCapabilities,
   SearchFilters,
   AuthContext,
+  ChildrenOptions,
   ImageResponse,
   ProviderType,
   PROVIDER_CAPABILITIES
@@ -118,12 +119,18 @@ export class EmbyProvider implements MediaProvider {
     seriesId: string,
     kind: "season" | "episode",
     auth?: AuthContext,
-    options?: { season?: number }
+    options?: ChildrenOptions
   ): Promise<MediaItem[]> {
     if (!auth?.userId) throw new Error("Auth credentials required");
     const path = kind === "season" ? `/Shows/${seriesId}/Seasons` : `/Shows/${seriesId}/Episodes`;
     const params: Record<string, any> = { userId: auth.userId, Fields: JELLYFIN_ITEM_FIELDS };
     if (kind === "episode" && typeof options?.season === "number") params.season = options.season;
+    // Same narrowing as Jellyfin: a show's whole episode list is not the deck.
+    if (kind === "episode") {
+      if (options?.unwatchedOnly) params.IsPlayed = false;
+      if (typeof options?.limit === "number" && options.limit > 0) params.Limit = options.limit;
+      if (options?.random) params.SortBy = "Random";
+    }
 
     const res = await apiClient.get(getEmbyUrl(path, auth.serverUrl), {
       params,

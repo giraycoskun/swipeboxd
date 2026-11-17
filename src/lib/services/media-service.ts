@@ -7,13 +7,24 @@ import { getMediaProvider } from "@/lib/providers/factory";
 import { ProviderType } from "@/lib/providers/types";
 import { AuthService } from "./auth-service";
 import { ConfigService } from "./config-service";
-import { deckCache } from "./deck-cache";
+import { deckCache, deckFiltersKey, filtersFingerprint } from "./deck-cache";
 import { HybridDeckService } from "./hybrid-deck-service";
 import { logger } from "@/lib/logger";
 import { getRuntimeConfig, getEffectiveCapabilities } from "@/lib/runtime-config";
 import { detailsIdFor, resolveItemSource } from "@/lib/providers/item-source";
-import { deckModeOf, withDeckDefaults } from "@/lib/deck-mode";
-import { canServeContinuation, excludeSwiped, seriesIdsFromNextUp, slicePage, unwatchedEpisodes } from "@/lib/continue-deck";
+import { deckFetchKinds, deckModeOf, withDeckDefaults } from "@/lib/deck-mode";
+import { canServeContinuation, EPISODE_SHOW_LIMIT, episodeFetchLimit, excludeSwiped, orderEpisodes, seriesIdsFromNextUp, slicePage } from "@/lib/continue-deck";
+import { mapWithConcurrency } from "@/lib/concurrency";
+
+/**
+ * How many items one deterministic deck build may pull from a library.
+ *
+ * Twenty cards do not need ten thousand rows: the build used to page through the
+ * whole library (up to 10 000 items, 100 per request) before the first card could
+ * render. A bounded shortlist, chosen by the server's own random order, is the
+ * same deck for a fraction of the requests and memory.
+ */
+export const DECK_SHORTLIST = 800;
 
 export class MediaService {
   static async getMediaItems(session: SessionData, page: number, limit: number, searchTerm?: string, overrideFilters?: Filters) {
@@ -96,7 +107,8 @@ export class MediaService {
     // session/solo split: the provider's own next-up is the whole deck.
     const deckMode = deckModeOf(sessionFilters);
     if (deckMode === "continue" || deckMode === "episodes") {
-      return this.getContinuationItems(sessionFilters, auth, provider, excludeIds, page, limit, deckMode);
+      const seed = session.sessionCode || session.user?.Id || "solo";
+      return this.getContinuationItems(sessionFilters, auth, provider, excludeIds, page, limit, deckMode, seed);
     }
 
     // 5. Handle Session vs Solo Mode
@@ -137,7 +149,8 @@ export class MediaService {
     excludeIds: Set<string>,
     page: number,
     limit: number,
-    mode: "continue" | "episodes"
+    mode: "continue" | "episodes",
+    seed = "solo"
   ): Promise<{ items: MediaItem[]; hasMore: boolean }> {
     if (!canServeContinuation(mode, provider.capabilities ?? {})) {
       // An empty deck is the honest answer for a provider with no watched state;
@@ -152,15 +165,28 @@ export class MediaService {
       return slicePage(visible, page, limit);
     }
 
-    const episodes: MediaItem[] = [];
-    for (const seriesId of seriesIdsFromNextUp(visible)) {
+    // Shortlist, then a bounded fetch: five shows, at most `episodeFetchLimit`
+    // episodes each, asked for unwatched at the source where the provider can.
+    // The alternative was every episode of every show you are watching.
+    const shows = seriesIdsFromNextUp(visible, EPISODE_SHOW_LIMIT);
+    const perShow = episodeFetchLimit(limit);
+    const batches = await mapWithConcurrency(shows, 2, async (seriesId) => {
       try {
-        episodes.push(...unwatchedEpisodes(await provider.getChildren(seriesId, "episode", auth), excludeIds));
+        return await provider.getChildren(seriesId, "episode", auth, {
+          unwatchedOnly: true,
+          limit: perShow,
+        });
       } catch {
         // A provider that cannot list episodes contributes fewer, not an error.
+        return [] as MediaItem[];
       }
-    }
-    return slicePage(episodes, page, limit);
+    });
+
+    const fetched = batches.flat();
+    // Observable on purpose: this is the number that used to be "every episode of
+    // every show you are watching" (hundreds, sometimes thousands).
+    logger.info(`Episodes deck: ${shows.length} shows × <=${perShow} -> ${fetched.length} episodes fetched`);
+    return slicePage(orderEpisodes(fetched, excludeIds, `${seed}:episodes`), page, limit);
   }
 
   /**
@@ -385,8 +411,10 @@ export class MediaService {
     // Hybrid decks must not collide with pure-provider cache entries
     const cacheProvider = hybrid ? "hybrid" : auth.provider;
 
-    // Build filter object for cache key
-    const filterKey = {
+    // The deck shape (kinds/deckMode/showUnit/status/started/sortBy) is part of the
+    // key: without it, switching Movies → Shows inside the 20-minute TTL served the
+    // previous mode's deck from cache.
+    const filterKey = deckFiltersKey(sessionFilters, {
       libraries: includedLibraries,
       genres: sessionFilters?.genres,
       excludedGenres: sessionFilters?.excludedGenres,
@@ -401,10 +429,10 @@ export class MediaService {
       excludedThemes: sessionFilters?.excludedThemes,
       tmdbLanguages: sessionFilters?.tmdbLanguages,
       unplayedOnly: sessionFilters?.unplayedOnly,
-    };
+    });
 
     // Check cache first
-    const filtersHash = this.generateFiltersHash(filterKey);
+    const filtersHash = filtersFingerprint(filterKey);
     let cached = deckCache.getCachedDeck(scope.cacheKey, cacheProvider, filterKey);
 
     if (!cached) {
@@ -480,22 +508,6 @@ export class MediaService {
     };
   }
 
-  private static generateFiltersHash(filters: Record<string, any>): string {
-    const sorted = Object.entries(filters)
-      .filter(([, value]) => value !== undefined && value !== null)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}:${JSON.stringify(value)}`)
-      .join('|');
-    
-    let hash = 0;
-    for (let i = 0; i < sorted.length; i++) {
-      const char = sorted.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash).toString(36);
-  }
-
   private static async fetchAllItemsForDeck(
     provider: any,
     auth: any,
@@ -545,7 +557,10 @@ export class MediaService {
     const batchSize = 100;
     let offset = 0;
     let hasMore = true;
-    const maxItems = 10000; // Safety limit
+    const maxItems = DECK_SHORTLIST;
+    // An explicit sort is a promise to the user; without one the shortlist is
+    // drawn at random by the server so it is not the first 800 titles by name.
+    const explicitSort = sessionFilters?.sortBy;
 
     // Get libraries to fetch from
     let libraries = includedLibraries;
@@ -561,8 +576,9 @@ export class MediaService {
 
       while (hasMore && allItems.length < maxItems) {
         try {
+          const pageSize = explicitSort ? batchSize : Math.max(1, maxItems - allItems.length);
           const items = await provider.getItems({
-            kinds: sessionFilters?.kinds,
+            kinds: deckFetchKinds(sessionFilters),
             started: sessionFilters?.started,
             libraries: [libraryId],
             genres: sessionFilters?.genres,
@@ -578,8 +594,8 @@ export class MediaService {
             excludedThemes: sessionFilters?.excludedThemes,
             tmdbLanguages: sessionFilters?.tmdbLanguages,
             unplayedOnly: sessionFilters?.unplayedOnly,
-            sortBy: "SortName", // Use consistent sort for fetching
-            limit: batchSize,
+            sortBy: explicitSort || "Random",
+            limit: pageSize,
             offset,
           }, auth);
 
@@ -595,8 +611,10 @@ export class MediaService {
             }
           }
 
-          offset += batchSize;
-          hasMore = items.length === batchSize;
+          offset += items.length;
+          // A random order cannot be paged: the next request draws a different
+          // random set, so it would repeat rows this one already returned.
+          hasMore = explicitSort ? items.length === pageSize : false;
         } catch (error) {
           logger.error("Error fetching items for deck:", error);
           hasMore = false;
@@ -645,7 +663,7 @@ export class MediaService {
       try {
         // Plex doesn't support pagination well in the same way, so fetch larger batches
         const items = await provider.getItems({
-          kinds: sessionFilters?.kinds,
+          kinds: deckFetchKinds(sessionFilters),
           started: sessionFilters?.started,
           libraries: [libraryId],
           genres: sessionFilters?.genres,
@@ -695,7 +713,7 @@ export class MediaService {
     for (let page = 1; page <= maxPages; page++) {
       try {
         const items = await provider.getItems({
-          kinds: sessionFilters?.kinds,
+          kinds: deckFetchKinds(sessionFilters),
           started: sessionFilters?.started,
           genres: sessionFilters?.genres,
           excludedGenres: sessionFilters?.excludedGenres,

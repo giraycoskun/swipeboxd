@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { deriveDeckMode, withDeckDefaults } from "./deck-mode";
+import { deckFetchKinds, deriveDeckMode, withDeckDefaults } from "./deck-mode";
 
 test("movies alone is the movies deck", () => {
   assert.equal(deriveDeckMode({ kinds: ["movie"] }), "movies");
@@ -88,4 +88,19 @@ test("choosing only shows keeps the shows deck", () => {
   const stored = withDeckDefaults({ genres: [], kinds: ["series"], deckMode: "shows" }, true);
   assert.equal(stored?.deckMode, "shows");
   assert.deepEqual(stored?.kinds, ["series"]);
+});
+
+test("a whole-library deck fetch never asks a provider for episodes", () => {
+  // A card is a show. Asking Jellyfin for Episode here would page through every
+  // episode in the library before the first card rendered.
+  assert.deepEqual(deckFetchKinds({ kinds: ["episode"] }), ["series"]);
+  assert.deepEqual(deckFetchKinds({ kinds: ["season"] }), ["series"]);
+  assert.deepEqual(deckFetchKinds({ kinds: ["movie"] }), ["movie"]);
+  assert.deepEqual(deckFetchKinds({ kinds: ["movie", "series"] }), ["movie", "series"]);
+  assert.deepEqual(deckFetchKinds({ kinds: ["episode", "movie"] }), ["series", "movie"]);
+});
+
+test("no kinds at all is the movies deck", () => {
+  assert.deepEqual(deckFetchKinds(null), ["movie"]);
+  assert.deepEqual(deckFetchKinds({ kinds: [] }), ["movie"]);
 });

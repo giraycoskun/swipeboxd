@@ -1,4 +1,5 @@
 import type { MediaItem } from "@/types/media";
+import { shuffleWithSeed } from "@/lib/utils";
 
 /**
  * Pure pieces of the Continue and Episodes decks.
@@ -41,6 +42,40 @@ export function seriesIdsFromNextUp(items: MediaItem[], max = 5): string[] {
     if (seen.size >= max) break;
   }
   return Array.from(seen);
+}
+
+/**
+ * How many episodes one show may contribute to the episodes deck.
+ *
+ * The deck shows twenty cards; a show can have eight hundred episodes, and every
+ * one of them used to cross the wire (Simpsons: 816) before being filtered in
+ * memory. This is the per-show fetch budget, so a deck build costs at most
+ * `EPISODE_SHOW_LIMIT` requests of at most this many items — not the library.
+ */
+export const EPISODE_SHOW_LIMIT = 5;
+export const EPISODE_FETCH_PER_SHOW = 24;
+
+/** Per-show fetch budget for a deck page of `limit` cards. */
+export function episodeFetchLimit(limit: number): number {
+  const page = Math.max(1, Math.floor(limit) || 1);
+  return Math.min(EPISODE_FETCH_PER_SHOW * 2, Math.max(EPISODE_FETCH_PER_SHOW, page * 2));
+}
+
+/**
+ * The deck from the shortlist: unwatched, not already swiped, deterministic for a
+ * given seed.
+ *
+ * Deterministic on purpose — the deck is rebuilt on every page request, so a
+ * server-side random order would make page 2 repeat what page 1 showed.
+ */
+export function orderEpisodes(episodes: MediaItem[], excludeIds: Set<string>, seed: string): MediaItem[] {
+  const seen = new Set<string>();
+  const unique = unwatchedEpisodes(episodes, excludeIds).filter((episode) => {
+    if (seen.has(episode.Id)) return false;
+    seen.add(episode.Id);
+    return true;
+  });
+  return shuffleWithSeed(unique, seed);
 }
 
 /** Episodes that are neither watched nor already swiped. */
