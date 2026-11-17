@@ -1,0 +1,50 @@
+# Messer Swipe
+
+> Swipe on what to watch next, alone or with a group. A deck built from your own media server, or from
+> TMDB when there is no server, with sessions where two people — or everyone — have to agree.
+
+Read this before changing anything. `AGENTS.md` is the contract and the invariants.
+
+## Run
+
+```bash
+npm ci
+npm run db:migrate      # create the SQLite schema
+npm run dev             # http://localhost:3000
+npm run check           # lint + typecheck + tests — the gate
+```
+
+`npm run doctor` diagnoses a deployment; `npm run e2e` drives the API contract against a running
+instance; `npm run e2e:live` does the same against a provider you control.
+
+## Contract
+
+- `src/app/api/*` — the route handlers. Every failure answers `{"error":{"code","message"}}`.
+- `GET /api/version` — the build; `GET /api/health` — liveness for a monitor.
+- `GET /api/events` — the SSE stream a live session syncs on; nothing polls.
+- `docs/configuration.md` — every environment variable and what it changes.
+
+## Invariants
+
+1. **The deck is a view, not a table.** Nothing is precomputed per user: a page of the provider's
+   catalogue, minus what this member has already swiped.
+2. **A session owns its state.** Members, swipes and matches hang off the session; there is no global
+   "user" table to write into.
+3. **A match carries the rule that made it** — `any-two` or `everyone` — so a surprising match is
+   explainable.
+4. **Provider credentials never reach the browser.** URLs, tokens and admin identities stay server-side;
+   BYOP input is refused private addresses unless the deployment opts in.
+5. **Images are proxied with a bounded queue.** A timed-out poster is a `504` the card retries, never a
+   cached broken image.
+
+## Do not
+
+- Add an accounts system: a member is a name and a signed cookie, and guests join by link.
+- Hot-link posters from the provider, or let the client ask for an unbounded width.
+- Poll where the SSE stream already carries the event.
+- Name a host, a home path or a private domain in a shipped file.
+
+## Licence
+
+MIT. Pull requests are closed; issues and discussions are open. A vulnerability goes to a private
+advisory, never a public issue.

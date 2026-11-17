@@ -43,7 +43,6 @@ yarn-error.log*
 next-env.d.ts
 
 swiparr.db
-docs/*
 .env.production.local
 
 # local agent workspace
