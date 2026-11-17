@@ -3,7 +3,7 @@
 # ~/Server/services.yaml. A false manifest is worse than no manifest: keep it true.
 
 schema: 1
-standard: "1.1"
+standard: "1.3"
 name: "messer-swipe"
 display: "Messer Swipe"
 family: "messer"
@@ -21,24 +21,29 @@ stack:
   brand: "messer-swipe"
   port: 1
 
+# A published manifest carries the facts a stranger can use. Where the estate instance runs, which
+# stack it belongs to and which process manager starts it are host-local (STANDARD §11.1.1), so they
+# live in the project skill, not here.
 deploy:
   kind: "docker"
   image: "ghcr.io/jakobbjelver/messer-swipe"
-  stack: "video"
-  service: "messer-swipe"
-  domain: "swipe-server.messer.wtf"
-  dev_domain: "dev-server.messer.wtf"
+  domain: "swipe.messer.wtf"      # the public demo; APP_PUBLIC_URL's default
 
 dev:
   command: "npm run dev"
   ports: [3000]
-  pm2: "messer-swipe-dev"
-  action: "actions/actions.json"
 
-health: "/healthz"
+visibility: "public"
+contributions: "closed"           # no pull requests
+channels: "issues+discussions"    # bug reports and ideas are read; patches are not
+
+health: "/api/health"
 
 # Every exception is dated and has a reason. An expired exception is an error.
 exceptions:
+  - id: no-screenshot
+    reason: The deck needs a seeded provider to render real cards — the hosted demo answers in TMDB mode with a skeleton deck, and a capture of a live install would show a real library. A seeded capture is the next documentation task.
+    expires: 2027-02-28
   - id: nextjs
     reason: >-
       Next 16 App Router app with route handlers, iron-session auth and a Drizzle database. It is a
