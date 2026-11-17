@@ -96,9 +96,12 @@ const main = async () => {
     await pass.fill(JELLYFIN_PASSWORD);
     await page.waitForTimeout(500);
     if ((await user.inputValue()) === JELLYFIN_USER && await submit.isEnabled()) break;
-    await user.click();
+    // `pressSequentially` APPENDS to whatever is already in the field: without an
+    // explicit clear the retry submitted "agent" + "agent" and the run failed on a
+    // 401 that looked like a broken login form.
+    await user.fill("");
+    await pass.fill("");
     await user.pressSequentially(JELLYFIN_USER, { delay: 25 });
-    await pass.click();
     await pass.pressSequentially(JELLYFIN_PASSWORD, { delay: 25 });
     await page.waitForTimeout(600);
     if (await submit.isEnabled()) break;
