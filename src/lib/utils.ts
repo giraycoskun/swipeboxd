@@ -14,7 +14,11 @@ export function seededRandom(seed: string) {
   }
   
   return function() {
-    hash = (hash * 16807) % 2147483647;
+    // Park–Miller, kept positive. `hash |= 0` above can leave the state negative,
+    // and a negative state made this return negative numbers — which the shuffle
+    // then used as a swap index, writing `undefined` over a deck element instead of
+    // reordering it. Seeds that hashed negative silently lost cards.
+    hash = Math.abs((hash * 16807) % 2147483647);
     return (hash - 1) / 2147483646;
   };
 }
