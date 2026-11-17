@@ -51,3 +51,8 @@ docs/*
 
 # e2e screenshots
 /e2e/shots/
+
+# host-local: one machine's Portal actions and working set
+actions/
+.hermes/
+docs/SKILL.template.md
