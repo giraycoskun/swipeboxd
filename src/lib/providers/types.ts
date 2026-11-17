@@ -130,6 +130,25 @@ export interface SearchFilters {
   offset?: number;
 }
 
+/**
+ * How many children to ask a provider for, and which ones.
+ *
+ * Every field is a request to narrow at the source, because the alternative is
+ * what the episodes deck used to do: fetch a show's whole episode list (Simpsons:
+ * 816) to show twenty. A provider that cannot honour one ignores it and the
+ * service filters in memory, so no adapter has to implement all of them.
+ */
+export interface ChildrenOptions {
+  /** One season only; absent means "every season". */
+  season?: number;
+  /** Ask for at most this many, newest-first providers permitting. */
+  limit?: number;
+  /** Only episodes the user has not watched (Jellyfin/Emby: IsPlayed=false). */
+  unwatchedOnly?: boolean;
+  /** Let the server pick (SortBy=Random) instead of returning air order. */
+  random?: boolean;
+}
+
 export interface MediaProvider {
   readonly name: string;
   readonly capabilities: ProviderCapabilities;
@@ -140,7 +159,7 @@ export interface MediaProvider {
 
   // Shows (2.0). Optional: a provider declares support through its capability flags.
   /** Seasons or episodes of a series, in air order. */
-  getChildren?(seriesId: string, kind: "season" | "episode", auth?: AuthContext, options?: { season?: number }): Promise<MediaItem[]>;
+  getChildren?(seriesId: string, kind: "season" | "episode", auth?: AuthContext, options?: ChildrenOptions): Promise<MediaItem[]>;
   /** The next unwatched episode per series (Jellyfin/Emby NextUp, Plex onDeck). */
   getNextUp?(auth?: AuthContext, limit?: number): Promise<MediaItem[]>;
   

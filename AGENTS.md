@@ -74,6 +74,15 @@ cannot resolve Docker service names.
 9. **A new provider mapper is a pure function** in a `map.ts` with no axios/Next import, so it is
    testable without a runtime.
 10. **Tests are `node:test`.** Do not add vitest/jest; the lockfile cost is not worth it.
+11. **An image request carries a size the provider understands.** `imageQueryFor()`
+    (`src/lib/image-request.ts`) is the only place that knows a provider's dialect — Jellyfin/Emby
+    `maxWidth`, Plex's photo transcoder, TMDB's path segment — and the route forwards nothing a client
+    sends unfiltered. A raw `width` is ignored by Jellyfin, which then re-encodes the original
+    2000×3000 poster per card, and ignored by Plex's `/thumb`, which serves it whole (issue #94).
+    `MAX_IMAGE_WIDTH` (default 960) caps what any client may ask for.
+12. **A deck fetch never asks a provider for `Episode`.** A card is a show: `deckFetchKinds()` maps
+    `episode`/`season` → `series` before any whole-library fetch, and the episodes deck is the
+    bounded set of unwatched episodes of the shows you are watching, not a scan of the library.
 
 ## Working rules
 

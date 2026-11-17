@@ -10,6 +10,17 @@ import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { ProviderType } from "@/lib/providers/types";
 import { resolveItemSource } from "@/lib/providers/item-source";
+import { config } from "@/lib/config";
+import { imageQueryFor, parseImageRequest } from "@/lib/image-request";
+import { createSemaphore } from "@/lib/semaphore";
+
+/**
+ * One resize at a time is what the media server can actually do: a deck asks for
+ * five posters at once and Jellyfin re-encodes each on the CPU, so the fifth
+ * answer arrives after the client has given up (issue #94). Queueing the fetches
+ * keeps every single request inside its own timeout instead.
+ */
+const imageQueue = createSemaphore(config.images.concurrency);
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,7 +36,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const cookieStore = await cookies();
   const session = await getIronSession<SessionData>(cookieStore, await getSessionOptions());
   
-  let auth;
+  let auth: Awaited<ReturnType<typeof AuthService.getEffectiveCredentials>> | undefined;
   try {
       auth = await AuthService.getEffectiveCredentials(session);
   } catch (e) {
@@ -69,25 +80,51 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
   }
 
-  try {
-    const options: Record<string, string> = {};
-    searchParams.forEach((value, key) => {
-        if (!["token", "imageType", "tag", "type", "provider"].includes(key)) {
-            options[key] = value;
-        }
-    });
+  // Only the two params that mean something to a provider are forwarded, mapped
+  // to that provider's own dialect. Everything else a client sends is dropped:
+  // forwarding arbitrary params is how `width=1600` reached a phone's decode
+  // budget in the first place.
+  const requested = parseImageRequest(searchParams, config.images.maxWidth);
+  const options = imageQueryFor(providerType, requested);
 
-    const response = await provider.fetchImage(externalId, isUserType ? "user" : imageType, effectiveTag || undefined, auth, options);
+  try {
+    const response = await imageQueue.run(async () => {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(Object.assign(new Error("Image request timed out"), { code: "IMAGE_TIMEOUT" })),
+          config.images.timeoutMs
+        );
+      });
+      try {
+        return await Promise.race([
+          provider.fetchImage(externalId, isUserType ? "user" : imageType, effectiveTag || undefined, auth, options),
+          timeout,
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    });
 
     return new NextResponse(response.data as any, {
       status: 200,
       headers: {
         "Content-Type": response.contentType,
         "Cache-Control": isUserType ? "no-cache, no-store, must-revalidate" : "public, max-age=31536000, immutable",
+        "X-Image-Width": String(requested.width),
       },
     });
 
   } catch (error: any) {
+    if (error?.code === "IMAGE_TIMEOUT") {
+      // A gateway timeout, not a broken image: the client keeps its placeholder
+      // and retries on the next request instead of caching a failure forever.
+      logger.warn(`Image ${externalId} timed out after ${config.images.timeoutMs} ms at ${requested.width}px`);
+      return new NextResponse("Image request timed out", {
+        status: 504,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
     if (error.response?.status === 404) {
       return new NextResponse("Image not found", { status: 404 });
     }

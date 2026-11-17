@@ -26,6 +26,7 @@ import { kindFromId } from "@/lib/providers/item-source";
 import { mapTvDetails, mapTvEpisode, mapTvListItem, mapTvSeason, seasonNumbersFor, tvApiId, tvStatusOf } from "./tv";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import { getRuntimeConfig } from "@/lib/runtime-config";
+import { tmdbSizeSegment } from "@/lib/image-request";
 
 /**
  * How long a whole-show episode fan-out is reused. A detail view asks for the
@@ -574,15 +575,27 @@ export class TmdbProvider implements MediaProvider {
     })).sort((a, b) => a.Name.localeCompare(b.Name));
   }
 
-  getImageUrl(itemId: string, type: "Primary" | "Backdrop" | "Logo" | "Thumb" | "Banner" | "Art" | "user", tag?: string): string {
-    const size = type === "Primary" ? "w500" : "original";
+  getImageUrl(itemId: string, type: "Primary" | "Backdrop" | "Logo" | "Thumb" | "Banner" | "Art" | "user", tag?: string, _auth?: AuthContext): string {
+    return this.imageUrlAtSize(itemId, type, tag, type === "Primary" ? "w500" : "original");
+  }
+
+  /**
+   * TMDB encodes the size in the path, so a sized request is a different URL, not
+   * a query param. `segment` comes from `tmdbSizeSegment` in lib/image-request.
+   */
+  private imageUrlAtSize(
+    itemId: string,
+    type: "Primary" | "Backdrop" | "Logo" | "Thumb" | "Banner" | "Art" | "user",
+    tag: string | undefined,
+    segment: string
+  ): string {
     if (tag) {
         const cleanTag = tag.startsWith('/') ? tag : `/${tag}`;
-        return `https://image.tmdb.org/t/p/${size}${cleanTag}`;
+        return `https://image.tmdb.org/t/p/${segment}${cleanTag}`;
     }
     if (itemId && (itemId.startsWith('/') || itemId.length > 20)) {
         const cleanTag = itemId.startsWith('/') ? itemId : `/${itemId}`;
-        return `https://image.tmdb.org/t/p/${size}${cleanTag}`;
+        return `https://image.tmdb.org/t/p/${segment}${cleanTag}`;
     }
     return "";
   }
@@ -601,10 +614,17 @@ export class TmdbProvider implements MediaProvider {
   }
 
   async fetchImage(itemId: string, type: string, tag?: string, auth?: AuthContext, options?: Record<string, string>): Promise<ImageResponse> {
-    const url = this.getImageUrl(itemId, type as any, tag);
+    // `width` is consumed here: it selects the path segment and must never reach
+    // image.tmdb.org as a query param.
+    const { width, ...passthrough } = options ?? {};
+    const requested = Number(width);
+    const segment = Number.isFinite(requested) && requested > 0
+      ? tmdbSizeSegment(requested)
+      : type === "Primary" ? "w500" : "original";
+    const url = this.imageUrlAtSize(itemId, type as any, tag, segment);
     const res = await axios.get(url, {
       responseType: "arraybuffer",
-      params: options
+      params: passthrough
     });
     return {
       data: res.data,

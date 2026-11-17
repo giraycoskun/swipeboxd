@@ -379,13 +379,30 @@ export class PlexProvider implements MediaProvider {
         throw new Error("Invalid URL");
     }
     const token = auth?.accessToken || appConfig.PLEX_TOKEN;
-    const headers = url.startsWith('http') ? {} : getPlexHeaders(token);
+
+    // `/library/metadata/{id}/thumb` ignores width/height and answers with the
+    // original poster — 2000×3000, ~750 KB, on a 390 px phone. Plex resizes only
+    // through its photo transcoder, so a sized request goes there instead. An
+    // absolute `tag` is a remote image with its own signature; leave it alone.
+    const external = typeof tag === "string" && tag.startsWith("http");
+    const wantedWidth = Number(options?.width);
+    const wantedHeight = Number(options?.height);
+    let target = url;
+    let headers: Record<string, string> = url.startsWith('http') ? {} : getPlexHeaders(token);
+    if (!external && Number.isFinite(wantedWidth) && wantedWidth > 0) {
+      const parsed = new URL(url);
+      const inner = `${parsed.pathname}${parsed.search}`;
+      const height = Number.isFinite(wantedHeight) && wantedHeight > 0 ? `&height=${Math.round(wantedHeight)}` : "";
+      target = `${parsed.origin}/photo/:/transcode?width=${Math.round(wantedWidth)}${height}&minSize=1&upscale=0&url=${encodeURIComponent(inner)}&X-Plex-Token=${token}`;
+      headers = {};
+    }
+
     const res = await plexRequest<any>({
       method: 'get',
-      url,
+      url: target,
       responseType: "arraybuffer",
       headers,
-      params: options
+      params: external || target !== url ? undefined : options
     });
     return {
       data: res.data,

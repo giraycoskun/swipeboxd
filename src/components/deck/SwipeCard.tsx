@@ -94,6 +94,9 @@ export const SwipeCard = memo(forwardRef<TinderCardHandle, SwipeCardProps>(
             onPointerUp={isFront ? handlePointerUp : undefined}
           >
             <Card className={cn("relative h-full w-full overflow-hidden rounded-3xl border-border select-none isolate transform-gpu", isFront && "shadow-xl")}>
+              {/* Only the front card is legible; the three behind it are 95 %
+                  covered, so they ask for a thumb instead of a full poster
+                  (three fewer 1200 px decodes per deck, #94/#101). */}
               <div className="absolute inset-0 bg-muted pointer-events-none rounded-3xl">
                 <OptimizedImage
                   src={item.ImageTags?.Primary 
@@ -103,12 +106,14 @@ export const SwipeCard = memo(forwardRef<TinderCardHandle, SwipeCardProps>(
                   alt={item.Name}
                   externalId={item.Id}
                   blurDataURL={item.BlurDataURL}
-                  loading={index == 0 ? 'eager' : undefined}
+                  loading={isFront ? "eager" : "lazy"}
+                  fetchPriority={isFront ? "high" : "low"}
+                  decoding="async"
                   className="h-full w-full object-cover rounded-3xl"
                   draggable={false} // Native drag must be disabled
                   height={700}
-                  width={500}
-                  sizes="(max-width: 768px) 100vw, 400px"
+                  width={isFront ? 500 : 320}
+                  sizes={isFront ? "(max-width: 768px) 100vw, 400px" : "160px"}
                 />
                 <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-neutral-950 via-neutral-950/60 to-transparent" />
               </div>

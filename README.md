@@ -209,6 +209,11 @@ PROVIDER_LOCK=false                          # Let users choose and configure th
 USE_ANALYTICS=false                          # Enable anonymous usage analytics (Vercel deployments)
 ENABLE_DEBUG=false                           # Enable verbose debug logging and client-server error mapping
 USE_STATIC_FILTERS=false                     # Skip dynamic filter fetching; use built-in genre/year/rating lists instead (useful for very large libraries where filter API calls time out)
+
+# Images
+MAX_IMAGE_WIDTH=960                          # Largest poster width a client may request. Lower it if your media server is slow at resizing (#94)
+IMAGE_CONCURRENCY=3                          # How many image fetches may hit the media server at once
+IMAGE_TIMEOUT_MS=12000                       # Per-image timeout; a timed-out image answers 504 and the client retries instead of caching a failure
 ```
 
 ### Environment Variable Matrix
@@ -246,6 +251,9 @@ USE_STATIC_FILTERS=false                     # Skip dynamic filter fetching; use
 | `USE_ANALYTICS` | ❌ | `false` | Enable anonymous usage analytics (Vercel deployments) |
 | `ENABLE_DEBUG` | ❌ | `false` | Enable verbose debug logging and client-server error mapping |
 | `USE_STATIC_FILTERS` | ❌ | `false` | Skip dynamic filter fetching and use built-in genre/year/rating lists. Useful for very large libraries where filter API calls time out. |
+| `MAX_IMAGE_WIDTH` | ❌ | `960` | Largest poster width a client may request (160–1920). The deck's CSS width is capped to this before the request leaves the app, and the media server is asked for `maxWidth` (Jellyfin/Emby), a photo transcode (Plex) or a TMDB size — not a raw `width`. Lower it (e.g. `600`) on a server that struggles to resize posters. |
+| `IMAGE_CONCURRENCY` | ❌ | `3` | How many image fetches may be in flight against the media server at once. A deck asks for several posters; queueing them keeps each request inside its timeout. |
+| `IMAGE_TIMEOUT_MS` | ❌ | `12000` | Per-image timeout. A timed-out image answers `504` with `no-store`, so the browser keeps its placeholder and retries instead of caching a broken card. |
 
 
 [^1]: Can be set to a local file (internal to container) OR external URL. Mostly relevant for Vercel deployments, which uses the Turso integration in the set-up workflow by default where these values are auto-generated and -injected. Can of course be swapped out with a database service provider of choice.
