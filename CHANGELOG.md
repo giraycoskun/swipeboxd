@@ -1,6 +1,10 @@
 # Changelog
 
-All notable changes to Swiparr will be documented in this file.
+> **This file is historical.** From 1.7.0 on, releases are cut by semantic-release from the commits on
+> `master`, so the authoritative changelog — with notes, diffs and images for every version — is
+> **[GitHub Releases](https://github.com/jakobbjelver/messer-swipe/releases)**. The hand-written entries
+> below stop at 1.0.3 (when the project was called Swiparr) and are kept as history, not as a current
+> version list.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

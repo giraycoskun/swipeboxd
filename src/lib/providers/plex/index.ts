@@ -4,6 +4,7 @@ import {
   ProviderCapabilities,
   SearchFilters,
   AuthContext,
+  ChildrenOptions,
   ImageResponse,
   ProviderType,
   PROVIDER_CAPABILITIES
@@ -203,7 +204,7 @@ export class PlexProvider implements MediaProvider {
     seriesId: string,
     kind: "season" | "episode",
     auth?: AuthContext,
-    options?: { season?: number }
+    options?: ChildrenOptions
   ): Promise<MediaItem[]> {
     const token = auth?.accessToken || appConfig.PLEX_TOKEN;
     if (!token) throw new Error("Plex Token is required");
@@ -228,13 +229,23 @@ export class PlexProvider implements MediaProvider {
     const seasons = await fetchChildren(seriesId);
     if (kind === "season") return seasons.map((item) => this.mapToMediaItem(item));
 
-    const season = typeof options?.season === "number"
-      ? seasons.find((s) => s.index === options.season)
-      : seasons[0];
-    if (!season?.ratingKey) return [];
+    const wanted = typeof options?.season === "number"
+      ? seasons.filter((s) => s.index === options.season)
+      : seasons;
 
-    const episodes = await fetchChildren(String(season.ratingKey));
-    return episodes.map((item) => this.mapToMediaItem(item));
+    // A deck that asks for "the unwatched episodes" of a show means the whole
+    // show: this used to answer with season 1 only, so a show entered mid-run had
+    // nothing to offer. Walk the seasons and stop once the budget is spent; Plex
+    // has no unwatched filter on a season, so the service filters after.
+    const budget = typeof options?.limit === "number" && options.limit > 0 ? options.limit : Infinity;
+    const episodes: MediaItem[] = [];
+    for (const season of wanted) {
+      if (!season?.ratingKey || episodes.length >= budget) continue;
+      const batch = await fetchChildren(String(season.ratingKey));
+      episodes.push(...batch.map((item) => this.mapToMediaItem(item)));
+      if (episodes.length >= budget) break;
+    }
+    return budget === Infinity ? episodes : episodes.slice(0, budget);
   }
 
   /** Continue-watching across the whole server — Plex's own onDeck shelf. */
@@ -379,13 +390,30 @@ export class PlexProvider implements MediaProvider {
         throw new Error("Invalid URL");
     }
     const token = auth?.accessToken || appConfig.PLEX_TOKEN;
-    const headers = url.startsWith('http') ? {} : getPlexHeaders(token);
+
+    // `/library/metadata/{id}/thumb` ignores width/height and answers with the
+    // original poster — 2000×3000, ~750 KB, on a 390 px phone. Plex resizes only
+    // through its photo transcoder, so a sized request goes there instead. An
+    // absolute `tag` is a remote image with its own signature; leave it alone.
+    const external = typeof tag === "string" && tag.startsWith("http");
+    const wantedWidth = Number(options?.width);
+    const wantedHeight = Number(options?.height);
+    let target = url;
+    let headers: Record<string, string> = url.startsWith('http') ? {} : getPlexHeaders(token);
+    if (!external && Number.isFinite(wantedWidth) && wantedWidth > 0) {
+      const parsed = new URL(url);
+      const inner = `${parsed.pathname}${parsed.search}`;
+      const height = Number.isFinite(wantedHeight) && wantedHeight > 0 ? `&height=${Math.round(wantedHeight)}` : "";
+      target = `${parsed.origin}/photo/:/transcode?width=${Math.round(wantedWidth)}${height}&minSize=1&upscale=0&url=${encodeURIComponent(inner)}&X-Plex-Token=${token}`;
+      headers = {};
+    }
+
     const res = await plexRequest<any>({
       method: 'get',
-      url,
+      url: target,
       responseType: "arraybuffer",
       headers,
-      params: options
+      params: external || target !== url ? undefined : options
     });
     return {
       data: res.data,

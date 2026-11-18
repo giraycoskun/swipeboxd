@@ -4,7 +4,7 @@
  *
  *   E2E_BASE_URL=http://127.0.0.1:3000 npm run e2e:live
  *
- * Credentials come from `~/.config/messer/jellyfin-test.env` (chmod 600) and are never printed.
+ * Credentials come from `~/Server/etc/secrets/jellyfin.env` (chmod 600) and are never printed.
  * The Jellyfin server is reached by the app itself (`http://jellyfin:8096`), so no Cloudflare
  * Access is involved.
  *
@@ -34,7 +34,7 @@ function loadPlaywright() {
 }
 
 function credentials() {
-  const file = process.env.E2E_CREDENTIALS || path.join(os.homedir(), ".config/messer/jellyfin-test.env");
+  const file = process.env.E2E_CREDENTIALS || path.join(os.homedir(), "Server/etc/secrets/jellyfin.env");
   if (!fs.existsSync(file)) throw new Error(`no credential file at ${file}`);
   const env = {};
   for (const line of fs.readFileSync(file, "utf8").split("\n")) {
@@ -96,9 +96,12 @@ const main = async () => {
     await pass.fill(JELLYFIN_PASSWORD);
     await page.waitForTimeout(500);
     if ((await user.inputValue()) === JELLYFIN_USER && await submit.isEnabled()) break;
-    await user.click();
+    // `pressSequentially` APPENDS to whatever is already in the field: without an
+    // explicit clear the retry submitted "agent" + "agent" and the run failed on a
+    // 401 that looked like a broken login form.
+    await user.fill("");
+    await pass.fill("");
     await user.pressSequentially(JELLYFIN_USER, { delay: 25 });
-    await pass.click();
     await pass.pressSequentially(JELLYFIN_PASSWORD, { delay: 25 });
     await page.waitForTimeout(600);
     if (await submit.isEnabled()) break;

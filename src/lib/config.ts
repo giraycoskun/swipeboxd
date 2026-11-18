@@ -45,6 +45,21 @@ const envSchema = z.object({
   APP_PUBLIC_URL: z.string().default('swipe.messer.wtf'),
   JELLYFIN_USE_WATCHLIST: z.preprocess((val) => val === 'true', z.boolean()).default(false),
 
+  // Images (issue #94): how large a poster a client may ask for, how many image
+  // fetches may hit the media server at once, and how long one may take.
+  MAX_IMAGE_WIDTH: z.preprocess(
+    (val) => (val === undefined || val === '' || !Number.isFinite(Number(val)) ? undefined : Number(val)),
+    z.number().int().min(160).max(1920).default(960)
+  ),
+  IMAGE_CONCURRENCY: z.preprocess(
+    (val) => (val === undefined || val === '' || !Number.isFinite(Number(val)) ? undefined : Number(val)),
+    z.number().int().min(1).max(16).default(3)
+  ),
+  IMAGE_TIMEOUT_MS: z.preprocess(
+    (val) => (val === undefined || val === '' || !Number.isFinite(Number(val)) ? undefined : Number(val)),
+    z.number().int().min(1000).max(60000).default(12000)
+  ),
+
   APP_VERSION: z.string().optional(),
   NEXT_PUBLIC_APP_VERSION: z.string().optional(),
   X_FRAME_OPTIONS: z.string().default('DENY'),
@@ -102,6 +117,11 @@ export const config = {
     provider: parsedEnv.PROVIDER,
     providerLock: parsedEnv.PROVIDER_LOCK,
     useWatchlist: parsedEnv.JELLYFIN_USE_WATCHLIST,
+  },
+  images: {
+    maxWidth: parsedEnv.MAX_IMAGE_WIDTH,
+    concurrency: parsedEnv.IMAGE_CONCURRENCY,
+    timeoutMs: parsedEnv.IMAGE_TIMEOUT_MS,
   },
   auth: {
     secret: parsedEnv.AUTH_SECRET,

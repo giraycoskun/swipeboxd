@@ -5,20 +5,12 @@ import Image, { ImageLoaderProps, ImageProps } from "next/image";
 import { cn } from "@/lib/utils";
 import { useRuntimeConfig } from "@/lib/runtime-config";
 import { useBlurData } from "@/hooks/use-blur-data";
+import { DEFAULT_MAX_IMAGE_WIDTH, DEFAULT_IMAGE_QUALITY, normalizeImageWidth } from "@/lib/image-request";
 import {
   ImageBroken,
 } from "@phosphor-icons/react/dist/ssr";
 
 import { Skeleton } from "./skeleton";
-
-const WIDTH_BUCKETS = [320, 480, 640, 768, 960, 1200, 1600];
-
-function normalizeRequestedWidth(width: number): number {
-  for (const bucket of WIDTH_BUCKETS) {
-    if (width <= bucket) return bucket;
-  }
-  return WIDTH_BUCKETS[WIDTH_BUCKETS.length - 1];
-}
 
 // 1. Create a global set to track loaded images outside the component
 const loadedImageCache = new Set<string>();
@@ -46,7 +38,10 @@ export function OptimizedImage({
   imageType,
   ...props
 }: OptimizedImageProps) {
-  const { basePath } = useRuntimeConfig();
+  // The instance decides how large a poster may get: the deck's `sizes` is a
+  // CSS request, and on a 3× phone it becomes 1344 px, which Jellyfin then
+  // re-encodes per card (issue #94). `maxImageWidth` caps it server-side too.
+  const { basePath, maxImageWidth = DEFAULT_MAX_IMAGE_WIDTH } = useRuntimeConfig();
 
   // Helper to get string version of src
   const srcString = typeof src === "string" ? src : "";
@@ -71,8 +66,8 @@ export function OptimizedImage({
   const blurDataURL = useBlurData(externalId, initialBlurDataURL, imageType);
 
   const imageLoader = ({ src, width, quality }: ImageLoaderProps) => {
-    const normalizedWidth = normalizeRequestedWidth(width);
-    return `${src}${src.includes("?") ? "&" : "?"}width=${normalizedWidth}&quality=${quality || 75}`;
+    const normalizedWidth = normalizeImageWidth(width, maxImageWidth);
+    return `${src}${src.includes("?") ? "&" : "?"}width=${normalizedWidth}&quality=${quality || DEFAULT_IMAGE_QUALITY}`;
   };
 
   const handleLoad = (e: any) => {
@@ -99,8 +94,12 @@ export function OptimizedImage({
           )}
         >
           {blurDataURL ? (
+            // No `filter: blur()` here on purpose: the placeholder is generated at
+            // 10 px wide (getBlurDataURL → sharp().resize(10)), so it is already a
+            // blur; a 40 px CSS blur on top of it costs a full-card paint layer per
+            // card, and this one sits inside the element being dragged (#101).
             <div
-              className="absolute inset-0 bg-cover bg-center blur-2xl scale-102"
+              className="absolute inset-0 bg-cover bg-center scale-102"
               style={{ backgroundImage: `url(${blurDataURL})` }}
             />
           ) : (
@@ -124,7 +123,9 @@ export function OptimizedImage({
           fill={isFill}
           priority={priority}
           className={cn(
-            "duration-400 ease-in-out transition-all",
+            // `transition-all` also animates filter/colour, which the drag path pays
+            // for on every property change; only opacity/transform move here.
+            "duration-400 ease-in-out transition-[opacity,transform]",
             isLoading ? "opacity-0 scale-102" : "opacity-100 scale-100",
             className
           )}

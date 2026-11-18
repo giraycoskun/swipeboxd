@@ -1,5 +1,6 @@
 import { MediaItem } from "@/types/media";
-import { shuffleWithSeed } from "@/lib/utils";
+import type { Filters } from "@/types/session";
+import { deckModeOf } from "@/lib/deck-mode";
 
 interface DeckCacheEntry {
   orderedIds: string[];
@@ -10,6 +11,45 @@ interface DeckCacheEntry {
 
 const CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes
 
+/**
+ * Deterministic fingerprint of a filter object: same shape, same order, same key.
+ * Exported so a test can prove two deck shapes differ without a database.
+ */
+export function filtersFingerprint(filters: Record<string, any>): string {
+  const sorted = Object.entries(filters)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}:${JSON.stringify(value)}`)
+    .join('|');
+  let hash = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    const char = sorted.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash).toString(36);
+}
+
+/**
+ * Which deck a cache entry belongs to.
+ *
+ * This has to carry everything that makes the deck a different deck. It did not
+ * carry `kinds`/`deckMode`, so switching Movies → Shows inside the TTL found the
+ * film deck under the same key and served it — a filter the service ignores is a
+ * bug, and so is a cache that ignores one.
+ */
+export function deckFiltersKey(filters: Filters | null | undefined, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    kinds: filters?.kinds,
+    deckMode: deckModeOf(filters),
+    showUnit: filters?.showUnit,
+    status: filters?.status,
+    started: filters?.started,
+    sortBy: filters?.sortBy,
+    ...extra,
+  };
+}
+
 class DeckCacheService {
   private cache: Map<string, DeckCacheEntry> = new Map();
 
@@ -18,23 +58,7 @@ class DeckCacheService {
   }
 
   private generateFiltersHash(filters: Record<string, any>): string {
-    // Create a deterministic hash from filters
-    const sorted = Object.entries(filters)
-      .filter(([, value]) => value !== undefined && value !== null)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${key}:${JSON.stringify(value)}`)
-      .join('|');
-    return this.simpleHash(sorted);
-  }
-
-  private simpleHash(str: string): string {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash).toString(36);
+    return filtersFingerprint(filters);
   }
 
   private isExpired(entry: DeckCacheEntry): boolean {

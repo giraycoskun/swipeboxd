@@ -3,6 +3,7 @@ import {
   ProviderCapabilities,
   SearchFilters,
   AuthContext,
+  ChildrenOptions,
   ImageResponse,
   ProviderType,
   PROVIDER_CAPABILITIES
@@ -137,7 +138,7 @@ export class JellyfinProvider implements MediaProvider {
     seriesId: string,
     kind: "season" | "episode",
     auth?: AuthContext,
-    options?: { season?: number }
+    options?: ChildrenOptions
   ): Promise<MediaItem[]> {
     if (!auth?.userId) throw new Error("Auth credentials required");
 
@@ -152,6 +153,13 @@ export class JellyfinProvider implements MediaProvider {
     // Undefined means "every season"; 0 is a real season number.
     if (kind === "episode" && typeof options?.season === "number") {
       params.season = options.season;
+    }
+    // The episodes deck asks for twenty; a show can have eight hundred, so the
+    // narrowing happens here instead of after the whole list has been sent.
+    if (kind === "episode") {
+      if (options?.unwatchedOnly) params.IsPlayed = false;
+      if (typeof options?.limit === "number" && options.limit > 0) params.Limit = options.limit;
+      if (options?.random) params.SortBy = "Random";
     }
 
     const res = await apiClient.get(getJellyfinUrl(path, auth.serverUrl), {
