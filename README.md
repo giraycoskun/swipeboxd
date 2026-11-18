@@ -44,6 +44,8 @@ Vercel: [clone with the Turso integration](https://vercel.com/new/clone?reposito
 |  |  |
 |---|---|
 | **Providers** | Jellyfin and TMDB are the supported pair; Emby and Plex are experimental |
+| **Shows** | series cards with seasons, episodes and the commitment numbers; a detail sheet that answers "where do I start" |
+| **Deck modes** | movies, shows, whole shows or single episodes, what you are already watching, or both kinds mixed |
 | **Sessions** | create or join in seconds from a link; no account for a guest |
 | **Match rules** | "any two people" or "everyone must agree" |
 | **Session limits** | cap likes, dislikes or total matches so a session ends |
@@ -71,7 +73,9 @@ The variables that matter most:
 | `MAX_IMAGE_WIDTH` | `960` | largest poster the client asks for |
 
 The full matrix — including the image queue, security headers and admin usernames — is in
-[`docs/configuration.md`](docs/configuration.md).
+[`docs/configuration.md`](docs/configuration.md); what each deck mode does is in
+[`docs/features.md`](docs/features.md). Upgrading from 1.x? Read [`docs/upgrading-to-2.0.md`](docs/upgrading-to-2.0.md)
+first: it covers the one stored change (TMDB ids are typed in 2.0) and how to roll back.
 
 ## Contract
 
