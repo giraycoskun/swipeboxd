@@ -23,6 +23,8 @@ instance; `npm run e2e:live` does the same against a provider you control.
 - `GET /api/version` — the build; `GET /api/health` — liveness for a monitor.
 - `GET /api/events` — the SSE stream a live session syncs on; nothing polls.
 - `docs/configuration.md` — every environment variable and what it changes.
+- `docs/features.md` — the deck modes (movies, shows, episodes, continue, mixed) and what each answers.
+- `docs/upgrading-to-2.0.md` — the only stored change in 2.0 (typed TMDB ids), behaviour deltas and rollback.
 
 ## Invariants
 
