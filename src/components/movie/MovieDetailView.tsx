@@ -1,31 +1,26 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Play,
-  Clock,
   Star,
   Heart,
   Bookmark,
-  ShieldCheck,
   ArrowSquareOut,
-  Percent,
-  HardDrives,
 } from "@phosphor-icons/react/dist/ssr";
 import { UserAvatarList } from "../session/UserAvatarList";
 import { useQueryClient } from "@tanstack/react-query";
 import { WatchProvider } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { motion, useMotionValue, useTransform } from "framer-motion";
 import { OptimizedImage } from "@/components/ui/optimized-image";
+import { MediaHero } from "./MediaHero";
 import { Drawer, DrawerContent, DrawerTitle } from "../ui/drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useRuntimeConfig } from "@/lib/runtime-config";
 import { useSession } from "@/hooks/api";
-import { ticksToTime, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useMovieDetails } from "@/hooks/api/use-movie-detail";
 import { useMovieActions } from "@/hooks/use-movie-actions";
 import { QUERY_KEYS } from "@/hooks/api/query-keys";
@@ -52,18 +47,8 @@ interface Props {
 }
 
 export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionCode }: Props) {
-  // 1. Create a manual motion value for scroll position
-  const scrollY = useMotionValue(0);
-
-  // 2. Define transforms based on that value (0 to 300px of scroll)
-  const imgY = useTransform(scrollY, [0, 300], [0, 300]);
-  const imgOpacity = useTransform(scrollY, [0, 300], [0.75, 0.2]);
-  const imgScale = useTransform(scrollY, [0, 300], [1, 1.15]);
-
-  // Handle scroll event manually to update the motion value
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    scrollY.set(e.currentTarget.scrollTop);
-  };
+  // The hero reads its parallax from this element; no React scroll handler in the way.
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const { data: movie, isLoading } = useMovieDetails(movieId, sessionCode);
 
@@ -130,7 +115,7 @@ export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionC
       <DrawerContent>
         <DrawerTitle className="sr-only">{movie?.Kind === "series" ? "Series details" : "Movie details"}</DrawerTitle>
         <div
-          onScroll={handleScroll} // Update motion value here
+          ref={scrollRef}
           className={cn(
             "p-0 overflow-y-auto h-[90vh] sm:max-w-full outline-none mt-1 no-scrollbar relative",
             "scroll-fade"
@@ -152,100 +137,12 @@ export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionC
             </div>
           ) : movie ? (
             <div className="relative">
-              {/* PARALLAX BACKGROUND */}
-              <div className="relative w-full h-80 overflow-hidden bg-background">
-                <motion.div
-                  style={{
-                    y: imgY,
-                    opacity: imgOpacity,
-                    scale: imgScale
-                  }}
-                  className="absolute inset-x-0 w-full h-full"
-                >
-                  <OptimizedImage
-                    src={movie.BackdropImageTags && movie.BackdropImageTags.length > 0 && movie.BackdropImageTags[0]
-                      ? `/api/media/image/${movie.Id}?imageType=Backdrop&tag=${movie.BackdropImageTags[0]}`
-                      : `/api/media/image/${movie.Id}?imageType=Backdrop`
-                    }
-                    externalId={movie.Id}
-                    imageType="Backdrop"
-                    alt="Backdrop"
-                    width={400}
-                    height={225}
-                    className={cn(
-                      'w-full h-full object-cover',
-                      // fade out top and bottom
-                      'mask-[linear-gradient(to_bottom,transparent,black_12%,black_50%,transparent)]',
-                      'mask-no-repeat'
-                    )}
-                  />
-                </motion.div>
-
-                {/* Header Content */}
-                <div className="absolute bottom-4 left-4 right-4 flex items-end gap-3">
-                  <OptimizedImage
-                    src={movie.ImageTags?.Primary 
-                      ? `/api/media/image/${movie.Id}?tag=${movie.ImageTags?.Primary}`
-                      : `/api/media/image/${movie.Id}?imageType=Primary`
-                    }
-                    externalId={movie.Id}
-                    imageType="Primary"
-                    width={75}
-                    height={125}
-                    className="w-28 h-40 rounded-lg shadow-2xl shadow-background border border-foreground/10 object-cover z-10 shrink-0"
-                    alt="Poster"
-                  />
-                  <div className="flex-1 mb-1 z-10 overflow-hidden">
-                    {movie.Genres && movie.Genres.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-2">
-                        {movie.Genres.slice(0, 3).map(genre => (
-                          <span key={genre} className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/20 backdrop-blur-md">
-                            {genre}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <h2 className="text-3xl font-bold leading-tight drop-shadow-lg text-foreground mb-1 line-clamp-2">
-                      {movie.Name}
-                    </h2>
-                    {!!movie.OriginalTitle && movie.OriginalTitle !== movie.Name && (
-                      <div className="text-sm text-foreground/60 mb-2 truncate italic">
-                        {movie.OriginalTitle}
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-3 text-xs items-center">
-                      {!!movie.ProductionYear && (
-                        <span className="font-semibold text-foreground/90 text-xs/0">
-                          {movie.ProductionYear}
-                        </span>
-                      )}
-                      {!!movie.OfficialRating && (
-                        <Badge variant="meta" className="border-foreground/30 text-foreground/80">
-                          <ShieldCheck className="w-3 h-3"/>
-                          {movie.OfficialRating}
-                        </Badge>
-                      )}
-                      {movie.InLibrary && (
-                        <Badge variant="meta" className="border-foreground/30 text-foreground/80">
-                          <HardDrives className="w-3 h-3"/>
-                          In Library
-                        </Badge>
-                      )}
-                      {!!movie.CommunityRating && ratingDisplay !== null && (
-                        <span className="flex items-center gap-1 font-bold text-xs/0">
-                          {isRottenTomatoes ? <Percent className="w-3 h-3" /> : <Star weight="fill" className="w-3 h-3" />}
-                          {ratingDisplay}{isRottenTomatoes ? "%" : ""}
-                        </span>
-                      )}
-                      {!!movie.RunTimeTicks && (
-                        <span className="flex items-center gap-1 text-foreground/70 text-xs/0">
-                          <Clock className="w-3 h-3" /> {ticksToTime(movie.RunTimeTicks)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <MediaHero
+                movie={movie}
+                scrollRef={scrollRef}
+                ratingDisplay={ratingDisplay}
+                isRottenTomatoes={isRottenTomatoes}
+              />
 
               {/* MAIN CONTENT */}
               <div className="relative z-20 p-6 bg-background">
