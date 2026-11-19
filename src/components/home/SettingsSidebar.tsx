@@ -102,7 +102,9 @@ export function SettingsSidebar() {
                     </SheetHeader>
 
                     <ScrollArea className="flex-1 px-6 h-[calc(100svh-80px)]">
-                        <div className="space-y-8 py-8 pb-12">
+                        {/* `pe-1` reserves the focus ring's gutter: the viewport clips at its own
+                            right edge, and a control sitting flush there loses the ring's right side. */}
+                        <div className="space-y-8 py-8 pb-12 pe-1">
                             <AccountSettings />
                             <GeneralSettings />
                             {capabilities.hasStreamingSettings && <StreamingSettings />}

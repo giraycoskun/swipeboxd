@@ -25,6 +25,9 @@ function ScrollArea({
         /* shadcn's own `scroll-fade` utility, applied to the element that owns the scroll.
            Every panel list — settings, filters, session settings, likes, guide — gets the same
            fade at the edges instead of each one hand-rolling a mask. */
+        /* The viewport clips at its own edge, so a focus ring painted outside a control's
+           border box dies there. Panels that put a control flush with the right edge must
+           reserve a ring gutter (`pe-1`) on their content, or the ring is cut. */
         className="scroll-fade focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
       >
         {children}

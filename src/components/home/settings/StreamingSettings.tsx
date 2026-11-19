@@ -181,7 +181,9 @@ export function StreamingSettings() {
     return (
         <SettingsSection title="Streaming">
             <div className="space-y-6">
-                <div className="flex flex-col items-end gap-4">
+                {/* Right-aligned in a scroll panel: `me-1` keeps the trigger's focus ring off
+                    the clip edge it would otherwise share with the scrollbar. */}
+                <div className="flex flex-col items-end gap-4 me-1">
                     <div className="w-full space-y-0.5">
                         <div className="flex items-center gap-1.5">
                             <div className="text-sm font-medium">Region</div>

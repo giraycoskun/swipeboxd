@@ -227,6 +227,32 @@ const main = async () => {
   // back is a hand-made shadow value or none at all.
   const elevated = /rgba\(0, 0, 0, 0\.12\) 0px 8px 24px 0px/.test(shadow);
   check("sheet wears the canon elevation", elevated, shadow.split(", ").slice(-1)[0]);
+
+  // 4b. the control nearest the clip edge keeps its focus ring inside it
+  const gutter = await page.evaluate(() => {
+    const vp = document.querySelector('[data-slot="sheet-content"] [data-slot="scroll-area-viewport"]');
+    if (!vp) return null;
+    const v = vp.getBoundingClientRect();
+    const controls = Array.from(vp.querySelectorAll("input, textarea, button")).filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 60 && r.height > 12;
+    });
+    if (controls.length === 0) return null;
+    const flush = controls.reduce((a, b) =>
+      a.getBoundingClientRect().right >= b.getBoundingClientRect().right ? a : b
+    );
+    flush.focus();
+    const r = flush.getBoundingClientRect();
+    return {
+      gap: Math.round(v.right - r.right),
+      label: (flush.getAttribute("placeholder") || flush.textContent || flush.tagName).trim().slice(0, 24),
+    };
+  });
+  check(
+    "a focused control keeps its ring inside the scroll edge",
+    !!gutter && gutter.gap >= 3,
+    gutter ? `${gutter.gap}px gutter at "${gutter.label}"` : "no control in the sheet"
+  );
   await page.screenshot({ path: path.join(SHOTS, "settings.png") });
 
   await browser.close();
