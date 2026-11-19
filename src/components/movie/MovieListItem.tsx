@@ -193,7 +193,9 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
             </div>
           )}
 
-          <div className="flex gap-2">
+          {/* `flex-wrap` is load-bearing: a film with services wraps the strip onto its own
+              line (see below), because 65 px beside the Play button shows one logo. */}
+          <div className="flex flex-wrap gap-2">
             {capabilities.requiresServerUrl && !sessionStatus?.isGuest && !isStreamingOnly && <Link href={detailsUrl} onClick={e => e.stopPropagation()} className="flex-1">
 
               <Button
@@ -208,12 +210,6 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
               </Button>
             </Link>
             }
-            {capabilities.hasStreamingSettings && (
-              <ProviderStrip
-                providers={currentMovie.WatchProviders ?? []}
-                className="flex-1"
-              />
-            )}
             {!sessionStatus?.isGuest && capabilities.hasAuth && capabilities.hasWatchlist && !isStreamingOnly && (
               <Button
                 size="sm"
@@ -240,6 +236,15 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
             >
               <Heart weight="fill" className="w-3.5 h-3.5 text-destructive" />
             </Button>}
+            {capabilities.hasStreamingSettings && (
+              <ProviderStrip
+                providers={currentMovie.WatchProviders ?? []}
+                // Three or more services get a line of their own; one or two sit beside Play.
+                className={cn(
+                  (currentMovie.WatchProviders?.length ?? 0) > 2 ? "basis-full" : "flex-1"
+                )}
+              />
+            )}
           </div>
         </div>
       </div>

@@ -34,8 +34,8 @@ import { FoldableList } from "@/components/ui/foldable-list";
 
 /** Past this many services the "Available on" row is a wall, so it opens folded. */
 const AVAILABLE_ON_FOLD_THRESHOLD = 10;
-/** Two chip rows and a sliver of the third, which the canon fade covers. */
-const AVAILABLE_ON_FOLDED_HEIGHT = "4.5rem";
+/** Two chip rows plus a sliver of the third, which the canon scroll-fade covers. */
+const AVAILABLE_ON_FOLDED_HEIGHT = "5.5rem";
 /** The sheet's open duration (see ui/sheet.tsx). Content swaps only after it. */
 const OPEN_ANIMATION_MS = 280;
 
