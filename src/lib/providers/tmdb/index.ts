@@ -23,6 +23,7 @@ import { TmdbSearchResponseSchema, TmdbMovieSchema } from "../schemas";
 import { logger } from "@/lib/logger";
 import { DEFAULT_THEMES } from "@/lib/constants";
 import { kindFromId } from "@/lib/providers/item-source";
+import { mapWatchProviders } from "@/lib/providers/watch-providers";
 import { mapTvDetails, mapTvEpisode, mapTvListItem, mapTvSeason, seasonNumbersFor, tvApiId, tvStatusOf } from "./tv";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import { getRuntimeConfig } from "@/lib/runtime-config";
@@ -403,10 +404,11 @@ export class TmdbProvider implements MediaProvider {
         append_to_response: 'credits,images,watch/providers,content_ratings',
       });
       const mapped = mapTvDetails(tv);
-      mapped.WatchProviders = this.mapWatchProviders(tv['watch/providers']?.results, auth?.watchRegion);
-      const ratings = tv.content_ratings?.results as Array<{ iso_3166_1: string; rating: string }> | undefined;
       const { tmdbDefaultRegion } = getRuntimeConfig();
       const region = auth?.watchRegion || tmdbDefaultRegion;
+      // Availability is a per-region answer: no region, no offers (see watch-providers.ts).
+      mapped.WatchProviders = mapWatchProviders(tv["watch/providers"]?.results, region);
+      const ratings = tv.content_ratings?.results as Array<{ iso_3166_1: string; rating: string }> | undefined;
       const contentRating = ratings?.find((r) => r.iso_3166_1 === region) ?? ratings?.[0];
       if (contentRating?.rating) mapped.OfficialRating = contentRating.rating;
       return mapped;
@@ -703,34 +705,9 @@ export class TmdbProvider implements MediaProvider {
       },
       BackdropImageTags: movie.backdrop_path ? [movie.backdrop_path] : [],
       People: people,
-      WatchProviders: this.mapWatchProviders(movie['watch/providers']?.results, region),
+      // One region, resolved above; a title with no offer there lists nothing.
+      WatchProviders: mapWatchProviders(movie["watch/providers"]?.results, targetRegion),
     };
-  }
-
-  private mapWatchProviders(results: any, preferredRegion?: string): WatchProvider[] {
-    if (!results) return [];
-    const providers = new Map<number, WatchProvider>();
-    const processRegion = (regionCode: string) => {
-        const data = results[regionCode];
-        if (!data) return;
-        const allTypes = [...(data.flatrate || []), ...(data.rent || []), ...(data.buy || []), ...(data.ads || []), ...(data.free || [])];
-        for (const p of allTypes) {
-            if (!providers.has(p.provider_id)) {
-                providers.set(p.provider_id, {
-                    Id: p.provider_id.toString(),
-                    Name: p.provider_name,
-                    LogoPath: p.logo_path.startsWith('/') ? p.logo_path : `/${p.logo_path}`
-                });
-            }
-        }
-    };
-    if (preferredRegion && results[preferredRegion]) {
-        processRegion(preferredRegion);
-    } else {
-        const regions = Object.keys(results);
-        for (const r of regions) processRegion(r);
-    }
-    return Array.from(providers.values());
   }
 
   private applyTrendingFilters(items: MediaItem[], filters: SearchFilters): MediaItem[] {
