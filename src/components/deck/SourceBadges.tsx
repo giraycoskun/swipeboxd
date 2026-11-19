@@ -6,20 +6,20 @@ import { Badge } from "@/components/ui/badge";
 import {
   HardDrives,
 } from "@phosphor-icons/react/dist/ssr";
-import { OptimizedImage } from "@/components/ui/optimized-image";
+import { ProviderStrip } from "@/components/media/ProviderStrip";
 
 const MAX_VISIBLE_LOGOS = 4;
 
 /**
  * Source row for hybrid decks: a library chip when the title is on the
  * user's media server, plus streaming service logos where it's watchable.
+ *
+ * The logos are the shared `ProviderStrip`, so a deck card and a likes row agree
+ * on tile size and on what "+N" means.
  */
 export function SourceBadges({ item }: { item: MediaItem }) {
   const watchProviders = item.WatchProviders || [];
   if (!item.InLibrary && watchProviders.length === 0) return null;
-
-  const visibleProviders = watchProviders.slice(0, MAX_VISIBLE_LOGOS);
-  const overflowCount = watchProviders.length - visibleProviders.length;
 
   return (
     <>
@@ -32,30 +32,15 @@ export function SourceBadges({ item }: { item: MediaItem }) {
           Library
         </Badge>
       )}
-      {visibleProviders.length > 0 && (
-        <div className="flex items-center gap-1">
-          {visibleProviders.map((provider) => (
-            <div
-              key={provider.Id}
-              className="size-5 shrink-0 rounded-[4px] overflow-hidden border border-neutral-700/70"
-              title={provider.Name}
-            >
-              <OptimizedImage
-                src={`https://image.tmdb.org/t/p/w92${provider.LogoPath}`}
-                alt={provider.Name}
-                className="object-cover"
-                unoptimized
-                width={20}
-                height={20}
-              />
-            </div>
-          ))}
-          {overflowCount > 0 && (
-            <Badge variant="outline" className="border-neutral-700/70 bg-neutral-700/20 text-neutral-100 px-1.5">
-              +{overflowCount}
-            </Badge>
-          )}
-        </div>
+      {watchProviders.length > 0 && (
+        // Four 20 px tiles and the gap between them, plus the "+N" chip's slot: the
+        // card's badge row is content-sized, so the strip is told how much room it has.
+        <ProviderStrip
+          providers={watchProviders}
+          maxVisible={MAX_VISIBLE_LOGOS}
+          available={MAX_VISIBLE_LOGOS * 24 + 42}
+          gap={4}
+        />
       )}
     </>
   );

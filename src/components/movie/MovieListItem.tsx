@@ -15,6 +15,7 @@ import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { OptimizedImage } from "@/components/ui/optimized-image";
 import { UserAvatarList } from "../session/UserAvatarList";
+import { ProviderStrip } from "@/components/media/ProviderStrip";
 import { MergedLike } from "@/types";
 import { useRuntimeConfig } from "@/lib/runtime-config";
 import { useMovieActions } from "@/hooks/use-movie-actions";
@@ -195,24 +196,12 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
               </Button>
             </Link>
             }
-            {capabilities.hasStreamingSettings && <div className="flex flex-1 flex-row gap-2 items-center">
-              {currentMovie.WatchProviders?.slice(0, 10).map((provider) => (
-                <OptimizedImage
-                  key={provider.Id}
-                  src={`https://image.tmdb.org/t/p/w92${provider.LogoPath}`}
-                  alt={provider.Name}
-                  className="object-cover rounded-xs"
-                  unoptimized
-                  width={20}
-                  height={20}
-                />
-              ))}
-              {currentMovie.WatchProviders && currentMovie.WatchProviders.length > 10 && (
-                <span className="text-[10px] text-muted-foreground font-medium">
-                  +{currentMovie.WatchProviders.length - 10}
-                </span>
-              )}
-            </div>}
+            {capabilities.hasStreamingSettings && (
+              <ProviderStrip
+                providers={currentMovie.WatchProviders ?? []}
+                className="flex-1"
+              />
+            )}
             {!sessionStatus?.isGuest && capabilities.hasAuth && capabilities.hasWatchlist && !isStreamingOnly && (
               <Button
                 size="sm"
