@@ -35,6 +35,12 @@ import { getProviderDetailsUrl } from "@/lib/provider-links";
 import { ProviderType } from "@/lib/providers/types";
 import { isTmdbSourcedId, resolveItemSource } from "@/lib/providers/item-source";
 import { SeriesDetailSection } from "@/components/shows/SeriesDetailSection";
+import { FoldableList } from "@/components/ui/foldable-list";
+
+/** Past this many services the "Available on" row is a wall, so it opens folded. */
+const AVAILABLE_ON_FOLD_THRESHOLD = 10;
+/** Two chip rows and a sliver of the third, which the canon fade covers. */
+const AVAILABLE_ON_FOLDED_HEIGHT = "4.5rem";
 
 interface Props {
   movieId: string | null;
@@ -301,23 +307,32 @@ export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionC
                     <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
                       Available On
                     </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {movie.WatchProviders.map((provider: WatchProvider) => (
-                        <div key={provider.Id} className="flex items-center gap-2 bg-background/50 border rounded-lg px-2.5 py-1.5">
-                          <div className="relative size-5 overflow-hidden rounded">
-                            <OptimizedImage
-                              src={`https://image.tmdb.org/t/p/w92${provider.LogoPath}`}
-                              alt={provider.Name}
-                              className="object-cover"
-                              unoptimized
-                              width={20}
-                              height={20}
-                            />
+                    {/* A film can be on twenty services; the section folds like the season list
+                        instead of pushing the synopsis off the bottom of the sheet. */}
+                    <FoldableList
+                      count={movie.WatchProviders.length}
+                      threshold={AVAILABLE_ON_FOLD_THRESHOLD}
+                      foldedHeight={AVAILABLE_ON_FOLDED_HEIGHT}
+                      noun="service"
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        {movie.WatchProviders.map((provider: WatchProvider) => (
+                          <div key={provider.Id} className="flex shrink-0 items-center gap-2 bg-background/50 border rounded-lg px-2.5 py-1.5">
+                            <div className="relative size-5 overflow-hidden rounded shrink-0">
+                              <OptimizedImage
+                                src={`https://image.tmdb.org/t/p/w92${provider.LogoPath}`}
+                                alt={provider.Name}
+                                className="object-cover"
+                                unoptimized
+                                width={20}
+                                height={20}
+                              />
+                            </div>
+                            <span className="text-[11px] font-medium leading-none whitespace-nowrap">{provider.Name}</span>
                           </div>
-                          <span className="text-[11px] font-medium leading-none">{provider.Name}</span>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    </FoldableList>
                   </div>
                 )}
 

@@ -12,6 +12,7 @@ import {
 import { MediaItem } from "@/types";
 import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { FoldableList } from "@/components/ui/foldable-list";
 import { startHereHeading, type StartHereResult } from "@/lib/start-here";
 import { getRuntimeConfig } from "@/lib/runtime-config";
 
@@ -71,7 +72,6 @@ const FOLDED_SEASON_HEIGHT = "9.7rem";
 
 export function SeriesDetailSection({ series }: Props) {
   const [openSeasons, setOpenSeasons] = useState<number[]>([]);
-  const [showAllSeasons, setShowAllSeasons] = useState(false);
   // A provider without watch state cannot answer "where are you": asking it for a
   // start-here position would print S1E1 under a heading that claims progress.
   const knowsProgress = getRuntimeConfig().capabilities.hasProgress;
@@ -137,7 +137,6 @@ export function SeriesDetailSection({ series }: Props) {
     : null;
 
   const seasonTotal = seasons?.length ?? 0;
-  const folded = !showAllSeasons && openSeasons.length === 0 && seasonTotal > SEASON_FOLD_THRESHOLD;
 
   return (
     <section className="mt-2 mb-8">
@@ -178,15 +177,15 @@ export function SeriesDetailSection({ series }: Props) {
       )}
 
       {!isLoadingSeasons && !isLoadingEpisodes && (
-        <div
-          className={cn(
-            "border-t border-border",
-            // Folded: exactly three rows are legible, the fourth is half-visible under the
-            // canon scroll-fade, and the toggle below finishes the list. Opening a season
-            // removes the fold — an episode list inside a 155px window is unusable.
-            folded && "overflow-y-auto scroll-fade",
-          )}
-          style={folded ? { maxHeight: FOLDED_SEASON_HEIGHT } : undefined}
+        <FoldableList
+          count={seasonTotal}
+          threshold={SEASON_FOLD_THRESHOLD}
+          foldedHeight={FOLDED_SEASON_HEIGHT}
+          noun="season"
+          // A season opened inside the window unfolds the rest: an episode list in a
+          // three-row hole is unusable.
+          forceOpen={openSeasons.length > 0}
+          className="border-t border-border"
         >
           {(seasons ?? []).map((season) => {
             const seasonNumber = season.SeasonNumber ?? 1;
@@ -247,21 +246,9 @@ export function SeriesDetailSection({ series }: Props) {
               </div>
             );
           })}
-          {folded && <div className="h-10" aria-hidden />}
-        </div>
+        </FoldableList>
       )}
 
-      {!isLoadingSeasons && !isLoadingEpisodes && (seasons?.length ?? 0) > SEASON_FOLD_THRESHOLD && (
-        <button
-          type="button"
-          className="mt-3 flex w-full items-center justify-center gap-1.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-          onClick={() => setShowAllSeasons((value) => !value)}
-          aria-expanded={showAllSeasons}
-        >
-          {showAllSeasons ? "See less" : `See all ${seasons?.length} seasons`}
-          <CaretDown className={cn("size-3.5 transition-transform", showAllSeasons && "rotate-180")} />
-        </button>
-      )}
     </section>
   );
 }
