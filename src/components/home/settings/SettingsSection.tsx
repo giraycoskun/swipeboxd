@@ -13,7 +13,12 @@ export function SettingsSection({ title, children, className }: SettingsSectionP
             // screen. `content-visibility: auto` keeps the browser from laying out and
             // painting the rest on the frame the sheet opens — that mount was a 156 ms
             // long task, i.e. the open animation dropping frames.
-            "[content-visibility:auto] [contain-intrinsic-size:auto_420px]",
+            //
+            // `contain-intrinsic-block-size`, not `contain-intrinsic-size`: WebKit reads the
+            // two-value form's length as the INLINE size, so `auto 420px` made every section
+            // 420 px wide inside a 244 px panel and pushed every right-aligned control off
+            // the screen on iOS. The block axis cannot touch the width.
+            "[content-visibility:auto] [contain-intrinsic-block-size:auto_420px]",
             className
         )}>
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">

@@ -68,6 +68,13 @@ export function MediaHero({ movie, scrollRef, ratingDisplay, isRottenTomatoes }:
         aria-hidden
       />
 
+      {/* And the same dissolve at the top edge, so at rest the backdrop emerges from under
+          the sheet's handle instead of starting on a hard line. */}
+      <div
+        className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-background to-transparent"
+        aria-hidden
+      />
+
       {/* Header content */}
       <div className="absolute bottom-4 left-4 right-4 flex items-end gap-3">
         <OptimizedImage

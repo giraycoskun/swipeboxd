@@ -210,6 +210,17 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
               </Button>
             </Link>
             }
+            {capabilities.hasStreamingSettings && (currentMovie.WatchProviders?.length ?? 0) > 0 && (
+              <ProviderStrip
+                providers={currentMovie.WatchProviders ?? []}
+                // One or two services sit beside Play; three or more take their own line at
+                // the END of the row (`order-last`), so the favourite and heart icons stay
+                // flush right instead of being pushed inwards by a growing strip.
+                className={cn(
+                  (currentMovie.WatchProviders?.length ?? 0) > 2 ? "order-last basis-full" : "flex-1"
+                )}
+              />
+            )}
             {!sessionStatus?.isGuest && capabilities.hasAuth && capabilities.hasWatchlist && !isStreamingOnly && (
               <Button
                 size="sm"
@@ -236,15 +247,6 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
             >
               <Heart weight="fill" className="w-3.5 h-3.5 text-destructive" />
             </Button>}
-            {capabilities.hasStreamingSettings && (
-              <ProviderStrip
-                providers={currentMovie.WatchProviders ?? []}
-                // Three or more services get a line of their own; one or two sit beside Play.
-                className={cn(
-                  (currentMovie.WatchProviders?.length ?? 0) > 2 ? "basis-full" : "flex-1"
-                )}
-              />
-            )}
           </div>
         </div>
       </div>
