@@ -19,6 +19,8 @@ import { ProviderStrip } from "@/components/media/ProviderStrip";
 import { MergedLike } from "@/types";
 import { useRuntimeConfig } from "@/lib/runtime-config";
 import { useMovieActions } from "@/hooks/use-movie-actions";
+import { useQueryClient } from "@tanstack/react-query";
+import { movieDetailQueryOptions } from "@/hooks/api/use-movie-detail";
 import { getProviderDetailsUrl } from "@/lib/provider-links";
 import { isTmdbSourcedId } from "@/lib/providers/item-source";
 import { useSession } from "@/hooks/api";
@@ -59,6 +61,14 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
     machineId: sessionStatus?.machineId,
     itemId: currentMovie.Id,
   });
+
+  // The list is the way into the detail sheet: warm the query on intent so the sheet
+  // opens with content instead of swapping a skeleton in mid-slide.
+  const queryClient = useQueryClient();
+  const prefetchDetails = () => {
+    if (isStreamingOnly) return;
+    void queryClient.prefetchQuery(movieDetailQueryOptions(currentMovie.Id, movie.sessionCode));
+  };
 
   const swipeDate = (() => {
     if (!currentMovie.swipedAt) return null;
@@ -114,6 +124,8 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
   return (
     <div
       onClick={onClick}
+      onPointerEnter={prefetchDetails}
+      onFocus={prefetchDetails}
       className={cn(
         "flex gap-4 mb-4 p-3 rounded-lg border transition-colors cursor-pointer bg-card border-border",
       )}

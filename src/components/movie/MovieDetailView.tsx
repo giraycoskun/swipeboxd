@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,8 +15,8 @@ import {
   HardDrives,
 } from "@phosphor-icons/react/dist/ssr";
 import { UserAvatarList } from "../session/UserAvatarList";
-import { useQuery } from "@tanstack/react-query";
-import { MediaItem, WatchProvider } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { WatchProvider } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { motion, useMotionValue, useTransform } from "framer-motion";
@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useRuntimeConfig } from "@/lib/runtime-config";
 import { useSession } from "@/hooks/api";
 import { ticksToTime, cn } from "@/lib/utils";
-import { apiClient } from "@/lib/api-client";
+import { useMovieDetails } from "@/hooks/api/use-movie-detail";
 import { useMovieActions } from "@/hooks/use-movie-actions";
 import { QUERY_KEYS } from "@/hooks/api/query-keys";
 import { TMDB_MOVIE_BASE_URL } from "@/lib/constants";
@@ -41,6 +41,8 @@ import { FoldableList } from "@/components/ui/foldable-list";
 const AVAILABLE_ON_FOLD_THRESHOLD = 10;
 /** Two chip rows and a sliver of the third, which the canon fade covers. */
 const AVAILABLE_ON_FOLDED_HEIGHT = "4.5rem";
+/** The sheet's open duration (see ui/sheet.tsx). Content swaps only after it. */
+const OPEN_ANIMATION_MS = 280;
 
 interface Props {
   movieId: string | null;
@@ -63,16 +65,28 @@ export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionC
     scrollY.set(e.currentTarget.scrollTop);
   };
 
-  const { data: movie, isLoading } = useQuery({
-    queryKey: QUERY_KEYS.movie(movieId, sessionCode, true),
-    queryFn: async () => {
-      if (!movieId) return null;
-      const codeParam = sessionCode === null ? "" : (sessionCode ?? "");
-      const res = await apiClient.get<MediaItem>(`/api/media/item/${movieId}?sessionCode=${codeParam}&includeUserState=1`);
-      return res.data;
-    },
-    enabled: !!movieId,
-  });
+  const { data: movie, isLoading } = useMovieDetails(movieId, sessionCode);
+
+  /**
+   * The open animation and the item request start together. If the detail lands
+   * mid-slide, the sheet repaints a full-height subtree in one frame and drops nine
+   * frames of the animation (144 ms measured at 6x CPU). The provider keys this
+   * component on the movie id, so it mounts once per opened title: the cache lookup
+   * and the "still sliding" state are initial values, not effect-driven updates.
+   */
+  const queryClient = useQueryClient();
+  const [openedWithData] = useState(
+    () => !!movieId && !!queryClient.getQueryData(QUERY_KEYS.movie(movieId, sessionCode, true))
+  );
+  const [settled, setSettled] = useState(!movieId);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(true), OPEN_ANIMATION_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // A warm sheet shows its content immediately; a cold one waits for the slide to end.
+  const holdContent = !!movie && !openedWithData && !settled;
 
   const {
     isInList,
@@ -122,7 +136,7 @@ export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionC
             "scroll-fade"
           )}>
 
-          {isLoading ? (
+          {isLoading || holdContent ? (
             <div className="h-64 w-full relative">
               <div className="absolute -bottom-12 left-4 flex items-end gap-3">
                 <Skeleton className="w-28 h-40 rounded-lg shadow-2xl shadow-background border border-foreground/10 object-cover z-10 shrink-0" />

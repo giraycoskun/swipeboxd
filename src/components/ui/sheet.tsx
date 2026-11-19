@@ -67,7 +67,10 @@ function SheetContent({
           // A dark page and a dark sheet are both `background`; the scrim then makes the page
           // darker than the panel, so the panel needs one step of elevation to read at all.
           // `--surface` is the canon's elevated surface (the same one cards and popovers wear).
-          "bg-background dark:bg-surface data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-(--shadow-pop) transition ease-in-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+          // Motion: one short open (280 ms, the canon ease) instead of a 500 ms slide. No
+          // `transition` class — it transitions `transform` *after* `animate-in` has finished,
+          // which reads as the panel overshooting and settling twice.
+          "bg-background dark:bg-surface data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-50 flex flex-col gap-4 shadow-(--shadow-pop) ease-(--ease) data-[state=closed]:duration-[180ms] data-[state=open]:duration-[280ms]",
           "pt-[env(safe-area-inset-top)]",
           side === "right" &&
           "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm",

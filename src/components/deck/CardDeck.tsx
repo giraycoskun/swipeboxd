@@ -24,6 +24,8 @@ import {
 } from "@/hooks/api";
 import { useBackgroundStore } from "@/lib/background-store";
 import { ProviderType } from "@/lib/providers/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { movieDetailQueryOptions } from "@/hooks/api/use-movie-detail";
 
 export function CardDeck() {
 
@@ -297,6 +299,26 @@ export function CardDeck() {
   useHotkeys("left", () => handleSwipeAction("left"), { enabled: !isFilterOpen && activeDeck.length > 0 });
   useHotkeys("right", () => handleSwipeAction("right"), { enabled: !isFilterOpen && activeDeck.length > 0 });
   useHotkeys("up", () => activeDeck[0] && openMovie(activeDeck[0].Id, { showLikedBy: false, sessionCode }), { enabled: !isFilterOpen && activeDeck.length > 0 });
+
+  /**
+   * The top card is the one that gets opened. Warm its detail at idle so the sheet
+   * opens with content instead of repainting a full-height subtree mid-slide.
+   */
+  const queryClient = useQueryClient();
+  const topCardId = activeDeck[0]?.Id;
+  useEffect(() => {
+    if (!topCardId) return;
+    const prefetch = () => {
+      void queryClient.prefetchQuery(movieDetailQueryOptions(topCardId, sessionCode));
+    };
+    const idle = typeof window.requestIdleCallback === "function"
+      ? window.requestIdleCallback(prefetch, { timeout: 2500 })
+      : window.setTimeout(prefetch, 800);
+    return () => {
+      if (typeof window.cancelIdleCallback === "function") window.cancelIdleCallback(idle as number);
+      else window.clearTimeout(idle as number);
+    };
+  }, [topCardId, sessionCode, queryClient]);
 
   if (isLoadingSession || isTransitioning || (activeDeck.length === 0 && (isLoading || isFetchingNextPage))) {
     return <DeckLoading />;

@@ -29,10 +29,14 @@ export function MovieDetailProvider({ children }: { children: React.ReactNode })
   return (
     <MovieDetailContext.Provider value={{ openMovie, closeMovie }}>
       {children}
-      <MovieDetailView 
-        movieId={selectedMovieId} 
-        onClose={closeMovie} 
-        showLikedBy={showLikedBy} 
+      {/* Keyed on the id: one mount per opened title, so the detail view's "was this
+          cached when the sheet opened" state is an initial value rather than an update
+          racing the open animation. */}
+      <MovieDetailView
+        key={selectedMovieId ?? "closed"}
+        movieId={selectedMovieId}
+        onClose={closeMovie}
+        showLikedBy={showLikedBy}
         sessionCode={sessionCode}
       />
     </MovieDetailContext.Provider>
