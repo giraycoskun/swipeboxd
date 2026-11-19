@@ -3,6 +3,7 @@ import sharp from "sharp";
 import axios from "axios";
 import { cacheLife, cacheTag } from "next/cache";
 import { tagBlur } from "@/lib/cache-tags";
+import { encodePlaceholder } from "@/lib/image-placeholder";
 
 // Limit sharp memory usage and cache
 sharp.cache({ items: 50, memory: 50 }); // 50MB max cache
@@ -25,14 +26,9 @@ export async function getBlurDataURL(
             timeout: 10000,
         });
 
-        const buffer = Buffer.from(response.data);
-        const { data, info } = await sharp(buffer)
-            .resize(10) // Small size for blur placeholder
-            .toBuffer({ resolveWithObject: true });
-
-        const blurDataURL = `data:image/${info.format};base64,${data.toString("base64")}`;
-        
-        return blurDataURL;
+        // 32 px, blurred and encoded in webp: see lib/image-placeholder.ts for why
+        // the old 10 px thumbnail read as pixel blocks once the CSS blur went away.
+        return await encodePlaceholder(Buffer.from(response.data));
     } catch (error: any) {
         console.error(`Failed to generate blurDataURL for ${itemId}:`, error.message);
         return undefined;

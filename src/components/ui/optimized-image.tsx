@@ -94,10 +94,10 @@ export function OptimizedImage({
           )}
         >
           {blurDataURL ? (
-            // No `filter: blur()` here on purpose: the placeholder is generated at
-            // 10 px wide (getBlurDataURL → sharp().resize(10)), so it is already a
-            // blur; a 40 px CSS blur on top of it costs a full-card paint layer per
-            // card, and this one sits inside the element being dragged (#101).
+            // No `filter: blur()` here on purpose: the placeholder is generated blurred
+            // and small (see lib/image-placeholder.ts), so a 40 px CSS blur on top of it
+            // would cost a full-card paint layer per card, and this one sits inside the
+            // element being dragged (#101).
             <div
               className="absolute inset-0 bg-cover bg-center scale-102"
               style={{ backgroundImage: `url(${blurDataURL})` }}
