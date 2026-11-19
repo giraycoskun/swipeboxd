@@ -11,8 +11,8 @@ test("everything fits when the strip is wide enough", () => {
   assert.deepEqual(fitProviders(400, 3, M), { visible: 3, hidden: 0 });
 });
 
-test("one pixel short of the last tile hides it", () => {
-  assert.deepEqual(fitProviders(71, 3, M), { visible: 0, hidden: 3 });
+test("one pixel short of the last tile hides it behind the count", () => {
+  assert.deepEqual(fitProviders(71, 3, M), { visible: 1, hidden: 2 });
 });
 
 test("a mid-width row shows filled tiles plus the count", () => {
@@ -23,8 +23,12 @@ test("a mid-width row shows filled tiles plus the count", () => {
   assert.ok(fit.visible * 20 + (fit.visible - 1) * 6 + 6 + 38 <= 140, "badge and tiles fit");
 });
 
-test("too narrow for three tiles means the count alone, never two dots", () => {
-  assert.deepEqual(fitProviders(60, 12, M), { visible: 0, hidden: 12 });
+test("a 65 px row shows one logo and counts the rest", () => {
+  assert.deepEqual(fitProviders(65, 8, M), { visible: 1, hidden: 7 });
+});
+
+test("too narrow for even one tile means the count alone, never half a dot", () => {
+  assert.deepEqual(fitProviders(50, 12, M), { visible: 0, hidden: 12 });
   assert.deepEqual(fitProviders(1, 12, M), { visible: 0, hidden: 12 });
 });
 

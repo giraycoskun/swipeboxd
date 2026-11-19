@@ -13,7 +13,7 @@ export interface StripMetrics {
   gap: number;
   /** Width reserved for the "+N" chip when anything is hidden. */
   badge: number;
-  /** Below this many tiles the strip shows the badge alone rather than two dots. */
+  /** Below this many tiles the strip shows the badge alone rather than a sliver of one. */
   minTiles: number;
 }
 
@@ -26,7 +26,9 @@ export const DEFAULT_STRIP_METRICS: StripMetrics = {
   tile: 20,
   gap: 6,
   badge: 38,
-  minTiles: 3,
+  // One logo and a count still tells you Netflix carries the film; zero logos is a
+  // worse answer than a single tile, and the row in a phone card has about 65 px.
+  minTiles: 1,
 };
 
 export function fitProviders(
