@@ -38,7 +38,9 @@ function RadioGroupItem({
         data-slot="radio-group-indicator"
         className="relative flex items-center justify-center"
       >
-        <Circle className="fill-primary absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2" />
+        {/* Phosphor's regular Circle is a donut (outer + inner path), so filling it
+            paints a ring. `weight="fill"` is the canon's word for "this is the state". */}
+        <Circle weight="fill" className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 text-primary" />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
   )
