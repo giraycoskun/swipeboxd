@@ -37,10 +37,11 @@ jobs:
         run: |
           docker run -d --name smoke -e AUTH_SECRET="smoke-secret-smoke-secret-000000000" messer-swipe:smoke
           for i in $(seq 1 60); do
-            if docker exec smoke wget -qO- http://127.0.0.1:4321/api/health >/dev/null 2>&1; then break; fi
+            if docker exec smoke curl -sf http://127.0.0.1:4321/api/health >/dev/null; then break; fi
             sleep 1
           done
-          docker exec smoke wget -qO- http://127.0.0.1:4321/api/v1/status > /tmp/status.json || true
+          # no -f: a 401 is the answer we are asserting, and its body is the envelope
+docker exec smoke curl -s http://127.0.0.1:4321/api/v1/status > /tmp/status.json
           docker rm -f smoke
           cat /tmp/status.json
           grep -q '"code":"UNAUTHORIZED"' /tmp/status.json
