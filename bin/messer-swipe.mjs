@@ -10,7 +10,9 @@ import { parseArgv, resolveContext } from "./lib/local.mjs";
 import { CliError } from "./lib/http.mjs";
 import { commands } from "./commands/index.mjs";
 
-const CLI_VERSION = process.env.MESSER_SWIPE_CLI_VERSION || "2.1.0";
+// The image sets APP_VERSION, so the CLI reports the build it shipped with — not a
+// constant that drifts from the server it talks to.
+const CLI_VERSION = process.env.MESSER_SWIPE_CLI_VERSION || process.env.APP_VERSION || "dev";
 
 const EXIT_BY_CODE = {
   UNAUTHORIZED: 3,

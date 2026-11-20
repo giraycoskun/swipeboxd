@@ -161,3 +161,9 @@ test("a 409 provider-auth answer exits 3 with its hint", async () => {
     }
   );
 });
+
+test("--version reports the build the image set, not a constant", async () => {
+  const pinned = await run(["--version"], { APP_VERSION: "9.9.9" });
+  assert.equal(pinned.code, 0);
+  assert.equal(pinned.stdout.trim(), "messer-swipe 9.9.9 (api 1)");
+});
