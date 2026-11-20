@@ -83,3 +83,45 @@
     @apply outline-none;
   }
 }
+
+/* ── Toaster (sonner) ────────────────────────────────────────────────────────────
+   Sonner is a third-party atom, so it arrives with its own defaults: the system font
+   stack, a hard `4px` radius on the action button ("Undo"/"Retry"), its own shadow
+   ramp. The toaster is portalled to <body> and its stylesheet is injected after ours,
+   so the neutralisation has to out-specify it — hence the `.toaster` prefix, which is
+   the className our <Toaster> already sets. The toast then wears the canon: zero
+   radius, Golos, the one elevation token.
+   A second Messer app with sonner means this belongs in messer-ui as a `.m-toast`
+   recipe instead. */
+[data-sonner-toaster].toaster {
+  font-family: var(--font-sans);
+  --border-radius: 0px;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] {
+  border-radius: 0;
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font-sans);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-title],
+.toaster [data-sonner-toast][data-styled="true"] [data-description] {
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-description] {
+  color: var(--text-2);
+}
+
+.toaster [data-sonner-toast][data-styled="true"] [data-button] {
+  border-radius: 0;
+  font-family: var(--font-sans);
+}
+
+/* Sonner focuses with a black halo; the canon's ring is a token. */
+.toaster [data-sonner-toast][data-styled="true"] [data-button]:focus-visible {
+  box-shadow: none;
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
