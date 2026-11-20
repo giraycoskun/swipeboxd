@@ -1,0 +1,45 @@
+name: sensors
+
+# Deterministic maintenance signals, no AI. A red run is the email: CI on
+# develop/master failed, or a configured deployment is not ready. Everything
+# else (dependency drift, an idle inbox, an unreleased develop) is recorded in
+# the artifact for the maintainer's brief instead of waking anyone up.
+
+on:
+  schedule:
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: sensors
+  cancel-in-progress: false
+
+jobs:
+  sensors:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Collect signals
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/sensors.mjs --out signals.json --fail-on-critical
+      - name: Keep the artifact even when a critical signal failed the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signals
+          path: signals.json
+          retention-days: 14
+          if-no-files-found: warn

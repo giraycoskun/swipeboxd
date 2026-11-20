@@ -81,6 +81,11 @@ export async function proxy(request: NextRequest) {
       process.env.DEV_IMPERSONATE === "1" &&
       process.env.NODE_ENV !== "production") ||
     pathname.startsWith("/api/auth") ||
+    // The agent API authenticates with a bearer token inside its own handlers, not
+    // with the cookie session. This is a pass-through, not a public surface: every
+    // /api/v1 handler starts with an agentRoute() that rejects a missing token.
+    pathname === "/api/v1" ||
+    pathname.startsWith("/api/v1/") ||
     pathname.startsWith("/api/og") ||
     pathname.startsWith("/opengraph-image") ||
     pathname.startsWith("/api/health") ||

@@ -113,3 +113,55 @@ export const sessionEvents = sqliteTable("SessionEvent", {
 
 export type SessionEvent = InferSelectModel<typeof sessionEvents>;
 export type NewSessionEvent = InferInsertModel<typeof sessionEvents>;
+
+/**
+ * Agent tokens: the credential an outside agent (a CLI, a script, Hermes) uses
+ * instead of a browser cookie. The plaintext is shown once at creation; only the
+ * sha256 of the secret is stored, plus an 8-character prefix used for lookup.
+ *
+ * `credential` is the encrypted member identity the token acts as — the same
+ * trust the schema already places in `Session.hostAccessToken` for guest lending.
+ * `isLocal` marks the token the container mints for `docker exec`; it is the only
+ * one that may be bound to a session without a human copying it.
+ */
+export const agentTokens = sqliteTable("AgentToken", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  prefix: text("prefix").notNull(),
+  hash: text("hash").notNull(),
+  userId: text("userId").notNull(),
+  userName: text("userName").notNull(),
+  provider: text("provider").notNull(),
+  scope: text("scope").notNull().default("read"),
+  credential: text("credential"),
+  isLocal: integer("isLocal", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("createdAt").notNull().default(sql`CURRENT_TIMESTAMP`),
+  lastUsedAt: text("lastUsedAt"),
+  revokedAt: text("revokedAt"),
+}, (table) => {
+  return [
+    uniqueIndex("AgentToken_prefix_key").on(table.prefix),
+    index("AgentToken_userId_idx").on(table.userId),
+  ];
+});
+
+export type AgentToken = InferSelectModel<typeof agentTokens>;
+export type NewAgentToken = InferInsertModel<typeof agentTokens>;
+
+/** One row per write an agent performed. Reads only bump `lastUsedAt`. */
+export const agentAudit = sqliteTable("AgentAudit", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tokenId: text("tokenId").notNull(),
+  action: text("action").notNull(),
+  ok: integer("ok", { mode: "boolean" }).notNull(),
+  errorCode: text("errorCode"),
+  durationMs: integer("durationMs").notNull().default(0),
+  createdAt: text("createdAt").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => {
+  return [
+    index("AgentAudit_tokenId_createdAt_idx").on(table.tokenId, table.createdAt),
+  ];
+});
+
+export type AgentAudit = InferSelectModel<typeof agentAudit>;
+export type NewAgentAudit = InferInsertModel<typeof agentAudit>;

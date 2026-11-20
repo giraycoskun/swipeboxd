@@ -17,6 +17,12 @@ npm run check           # lint + typecheck + tests — the gate
 `npm run doctor` diagnoses a deployment; `npm run e2e` drives the API contract against a running
 instance; `npm run e2e:live` does the same against a provider you control.
 
+## Agents
+
+`bin/messer-swipe.mjs` ships in the image and talks to `/api/v1` with a bearer token:
+`docker exec <container> messer-swipe status`. See `docs/agents.md`; the container mints
+its own local token at first admin login, so no setup is needed.
+
 ## Contract
 
 - `src/app/api/*` — the route handlers. Every failure answers `{"error":{"code","message"}}`.

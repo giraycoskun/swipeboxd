@@ -55,3 +55,6 @@ swiparr.db
 actions/
 .hermes/
 docs/SKILL.template.md
+
+# The local agent token a dev server writes beside the database. A credential, never a commit.
+.agent-token

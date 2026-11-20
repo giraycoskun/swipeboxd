@@ -8,6 +8,7 @@ import { loginSchema } from "@/lib/validations";
 import { getMediaProvider } from "@/lib/providers/factory";
 import { ConfigService } from "@/lib/services/config-service";
 import { AuthService } from "@/lib/services/auth-service";
+import { ensureLocalAgentToken } from "@/lib/agent/local";
 import { logger } from "@/lib/logger";
 import { handleApiError } from "@/lib/api-utils";
 
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
         }
     
     await session.save();
+    await ensureLocalAgentToken(session);
 
     logger.info("[Auth] Session cookie saved.");
 

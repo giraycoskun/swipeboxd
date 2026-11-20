@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { SessionData } from "@/types";
 import { ConfigService } from "@/lib/services/config-service";
 import { AuthService } from "@/lib/services/auth-service";
+import { ensureLocalAgentToken } from "@/lib/agent/local";
 import { handleApiError } from "@/lib/api-utils";
 import { logger } from "@/lib/logger";
 import { getBestServerUrl, getPlexHeaders, assertSafePlexServerUrl } from "@/lib/plex/api";
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
     delete session.providerConfig;
     
     await session.save();
+    await ensureLocalAgentToken(session);
 
     return NextResponse.json({ success: true, wasMadeAdmin });
   } catch (error) {

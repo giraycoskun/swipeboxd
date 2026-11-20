@@ -1,0 +1,67 @@
+name: Bug report
+description: Something does not work the way it should
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. The fastest route to a fix is the diagnostics bundle:
+        it carries versions and counts, never library names or hostnames.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version in Settings → About, or the image tag.
+      placeholder: "2.1.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - Jellyfin
+        - Emby
+        - Plex
+        - TMDB only
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How it runs
+      options:
+        - Docker / docker compose
+        - TrueNAS
+        - Unraid
+        - Kubernetes
+        - Vercel (the demo)
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        Run `docker exec <container> messer-swipe diag` and paste the output (or the file).
+        No container CLI yet? Paste `docker compose logs --tail 100` instead.
+      render: json
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Container logs around the failure. Remove anything private first.
+      render: shell
+    validations:
+      required: false

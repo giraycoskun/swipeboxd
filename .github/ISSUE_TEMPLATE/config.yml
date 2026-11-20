@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/jakobbjelver/messer-swipe/discussions
+    about: Ask, compare setups, or float an idea before it becomes an issue.
+  - name: Security vulnerability
+    url: https://github.com/jakobbjelver/messer-swipe/security/advisories/new
+    about: Report privately. Never in a public issue.
