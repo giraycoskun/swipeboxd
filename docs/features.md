@@ -67,6 +67,20 @@ understands, capped by `MAX_IMAGE_WIDTH` (default `960`), a bounded number are i
 never a broken image the browser then caches. Episode stills for cards behind the front one are requested
 as thumbnails, not posters.
 
+### Spoilers
+
+An episode you have not played is a spoiler waiting to happen: the still, the episode title and the
+synopsis each give the plot away. The deck hides all three behind a panel that names only the series and
+the episode number, and leaves a **Reveal** on the card. The mask belongs to the card and is not
+remembered — the next episode is masked again, and a played episode is never masked.
+
+### When you both say yes
+
+Two members liking the same title is a match, and a match takes the screen: who liked it, the poster (tap
+it for the details sheet), and — for a show — where to start. **Continue** or Escape returns you to the
+deck. If several matches land while you are reading one, they queue and arrive one after the other instead
+of the second overwriting the first.
+
 ### Session Settings
 
 When you create a session, customize it for your group:
