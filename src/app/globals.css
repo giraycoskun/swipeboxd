@@ -84,6 +84,15 @@
   }
 }
 
+/* Radix wraps a ScrollArea's content in `<div style="display: table; min-width: 100%">`. Table
+   layout sizes that box to the MIN-CONTENT of its widest child, so a likes row with many service
+   logos (or a long title) grew the whole list past the viewport — the card measured 412px inside a
+   390px screen and the heart sat off-screen. Block layout takes the available width and lets the
+   row shrink its own strip instead. */
+[data-radix-scroll-area-viewport] > div {
+  display: block !important;
+}
+
 /* ── Toaster (sonner) ────────────────────────────────────────────────────────────
    Sonner is a third-party atom, so it arrives with its own defaults: the system font
    stack, a hard `4px` radius on the action button ("Undo"/"Retry"), its own shadow
