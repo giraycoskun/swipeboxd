@@ -29,6 +29,11 @@ Components stay local, so patches are ordinary edits and upstream deltas stay vi
 - **A series past five seasons opens folded.** Three rows are legible, the fourth is half-visible
   under the canon `scroll-fade`, and a "See all N seasons" toggle finishes the list; opening a
   season unfolds it, because an episode list inside a 155px window is unusable.
+- **A third-party atom is neutralised in `globals.css`, not forked.** Sonner ships a hard `4px`
+  radius on its toast action button, the system font stack on the toaster and its own shadow; the
+  toaster is portalled to `<body>` and its stylesheet lands after ours, so the overrides use the
+  `.toaster` class to win. If a second Messer app ships sonner this belongs in messer-ui as a
+  `.m-toast` recipe — the Portal has the same rounded Undo button today.
 - **Mono is for machine values, never for chips.** Season indices, counts, runtimes, codes and
   versions stay mono; badges, buttons, prose and headings-sized statistics do not. A badge is
   semibold uppercase Golos at 10px — there is one `meta` badge variant so no site hand-rolls it.
