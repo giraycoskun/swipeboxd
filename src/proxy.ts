@@ -73,6 +73,13 @@ export async function proxy(request: NextRequest) {
   const isPublicPath =
     sinkIsPublic ||
     pathname === "/login" ||
+    // Dev-only session minter: it IS the login. 404s by itself unless the
+    // launcher set DEV_IMPERSONATE, so only treat it as public in that mode.
+    // (Inline check: importing the identities module would pull node:fs into
+    // the proxy runtime.)
+    (pathname === "/api/dev/impersonate" &&
+      process.env.DEV_IMPERSONATE === "1" &&
+      process.env.NODE_ENV !== "production") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/og") ||
     pathname.startsWith("/opengraph-image") ||
