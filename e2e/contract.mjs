@@ -208,7 +208,15 @@ const main = async () => {
     check("the whole row toggles the switch", rowBox.before !== after, `${rowBox.before} → ${after}`);
     await page.screenshot({ path: path.join(SHOTS, "filter-drawer.png") });
   } else {
-    check("filter drawer has the Hide Watched switch", false, "no [data-slot=switch] found");
+    // A provider with no watch state has nothing to hide: TMDB never knows what you
+    // watched, so the switch is correctly absent. Only a library-backed instance
+    // failing to draw it is a defect.
+    const hasProgress = await page.evaluate(() => window.__MESSER_SWIPE_CONFIG__?.capabilities?.hasProgress ?? true);
+    if (hasProgress) {
+      check("filter drawer has the Hide Watched switch", false, "no [data-slot=switch] found");
+    } else {
+      console.log("skip  filter drawer has the Hide Watched switch — this provider has no watch state");
+    }
   }
 
   // 4. the settings sheet draws no shadow
