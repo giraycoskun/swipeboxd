@@ -8,6 +8,7 @@ import { FilterDrawer } from "./FilterDrawer";
 import { MatchOverlay } from "./MatchOverlay";
 import { useHotkeys } from "react-hotkeys-hook";
 import { DeckControls } from "./DeckControls";
+import { DeckHints } from "./DeckHints";
 import { DeckEmpty } from "./DeckEmpty";
 import { DeckError } from "./DeckError";
 import { DeckLoading } from "./DeckLoading";
@@ -290,9 +291,27 @@ export function CardDeck() {
     setIsFilterOpen(false);
   };
 
-  useHotkeys("left", () => handleSwipeAction("left"), { enabled: !isFilterOpen && activeDeck.length > 0 });
-  useHotkeys("right", () => handleSwipeAction("right"), { enabled: !isFilterOpen && activeDeck.length > 0 });
-  useHotkeys("up", () => activeDeck[0] && openMovie(activeDeck[0].Id, { showLikedBy: false, sessionCode }), { enabled: !isFilterOpen && activeDeck.length > 0 });
+  // Keyboard: every key the User Guide prints must exist here. A dialog owns the
+  // keyboard while it is open (detail sheet, settings, the guide), otherwise a stray
+  // `d` would like a card the reader cannot see.
+  const deckReady = !isFilterOpen && activeDeck.length > 0;
+  const whenNoDialog = (action: () => void) => () => {
+    if (typeof document !== "undefined" && document.querySelector('[role="dialog"][data-state="open"]')) return;
+    action();
+  };
+
+  useHotkeys("left", whenNoDialog(() => handleSwipeAction("left")), { enabled: deckReady });
+  useHotkeys("right", whenNoDialog(() => handleSwipeAction("right")), { enabled: deckReady });
+  useHotkeys("a", whenNoDialog(() => handleSwipeAction("left")), { enabled: deckReady });
+  useHotkeys("d", whenNoDialog(() => handleSwipeAction("right")), { enabled: deckReady });
+  useHotkeys("r, backspace", whenNoDialog(() => { void rewind(); }), { enabled: !isFilterOpen && !!lastSwipe });
+  useHotkeys("enter, space", whenNoDialog(() => activeDeck[0] &&
+    openMovie(activeDeck[0].Id, { showLikedBy: false, sessionCode })), { enabled: deckReady });
+  // F opens the drawer; Escape (Radix) closes it, so the key never has to toggle
+  // something the reader cannot currently see.
+  useHotkeys("f", whenNoDialog(() => setIsFilterOpen(true)), { enabled: deckReady });
+  useHotkeys("up", whenNoDialog(() => activeDeck[0] &&
+    openMovie(activeDeck[0].Id, { showLikedBy: false, sessionCode })), { enabled: deckReady });
 
   /**
    * The top card is the one that gets opened. Warm its detail at idle so the sheet
@@ -383,6 +402,10 @@ export function CardDeck() {
         leftSwipesRemaining={leftSwipesRemaining}
         rightSwipesRemaining={rightSwipesRemaining}
       />
+
+      <div className="mt-3 w-full">
+        <DeckHints />
+      </div>
 
       <MatchOverlay
         item={matchedItem}
