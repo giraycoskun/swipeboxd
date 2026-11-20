@@ -128,6 +128,7 @@ IMAGE_TIMEOUT_MS=12000                       # Per-image timeout; a timed-out im
 | `USE_ANALYTICS` |  | `false` | Enable anonymous usage analytics (Vercel deployments) |
 | `ENABLE_DEBUG` |  | `false` | Enable verbose debug logging and client-server error mapping |
 | `USE_STATIC_FILTERS` |  | `false` | Skip dynamic filter fetching and use built-in genre/year/rating lists. Useful for very large libraries where filter API calls time out. |
+| `AGENT_API` |  | - | Set to `off` to disable the agent API (`/api/v1/*` and the in-image CLI) without deleting tokens. See [Agents](agents.md). |
 | `MAX_IMAGE_WIDTH` |  | `960` | Largest poster width a client may request (160–1920). The deck's CSS width is capped to this before the request leaves the app, and the media server is asked for `maxWidth` (Jellyfin/Emby), a photo transcode (Plex) or a TMDB size — not a raw `width`. Lower it (e.g. `600`) on a server that struggles to resize posters. |
 | `IMAGE_CONCURRENCY` |  | `3` | How many image fetches may be in flight against the media server at once. A deck asks for several posters; queueing them keeps each request inside its timeout. |
 | `IMAGE_TIMEOUT_MS` |  | `12000` | Per-image timeout. A timed-out image answers `504` with `no-store`, so the browser keeps its placeholder and retries instead of caching a broken card. |

@@ -83,6 +83,11 @@ cannot resolve Docker service names.
 12. **A deck fetch never asks a provider for `Episode`.** A card is a show: `deckFetchKinds()` maps
     `episode`/`season` → `series` before any whole-library fetch, and the episodes deck is the
     bounded set of unwatched episodes of the shows you are watching, not a scan of the library.
+13. **The agent surface is `/api/v1`, and it calls services — never the app's own HTTP API.** Every
+    handler is wrapped in `agentRoute(scope, action, …)` from `src/lib/agent/route.ts`, which owns the
+    bearer check, the envelope and the audit row; `bin/messer-swipe.mjs` is the only client shipped
+    here, and the token it uses is minted by the container at first admin login. The UI's `/api/*`
+    stays private; a new capability means a new `/api/v1` handler, not a second implementation.
 
 ## Working rules
 

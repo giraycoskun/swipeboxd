@@ -64,6 +64,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/db/migrations ./src/db/migrat
 COPY --from=builder --chown=nextjs:nodejs /app/src/db/migrate.js ./src/db/migrate.js
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/ensure-auth-secret.cjs ./scripts/ensure-auth-secret.cjs
 
+# The agent CLI ships inside the image: no registry, no install step, and it is
+# always the version of the server it talks to. `docker exec <container>
+# messer-swipe status` is the whole setup.
+COPY --from=builder /app/bin ./bin
+RUN chmod 755 ./bin/messer-swipe.mjs \
+    && ln -s /app/bin/messer-swipe.mjs /usr/local/bin/messer-swipe
+
 # Note: drizzle-orm and @libsql/client are needed by migrate.js. 
 # Next.js standalone usually bundles deps, but migrate.js is run outside that bundle.
 # We copy them from the builder to ensure they are available for the migration script.
