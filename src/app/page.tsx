@@ -1,6 +1,6 @@
 "use client";
 import { CardDeck } from "@/components/deck/CardDeck";
-import { SessionManager } from "@/components/session/SessionManager";
+import SessionContent from "@/components/session/SessionContent";
 import { LikesList } from "@/components/likes/LikesList";
 import {
   CardsThree,
@@ -27,7 +27,7 @@ export default function Home() {
       <div className="grid justify-center my-[3svh] relative">
 
         <div className="w-full mt-2 md:max-w-md min-w-0 relative">
-          <SessionManager />
+          <SessionContent />
           <SettingsSidebar />
         </div>
 

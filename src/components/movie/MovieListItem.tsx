@@ -193,61 +193,73 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
             </div>
           )}
 
-          {/* `flex-wrap` is load-bearing: a film with services wraps the strip onto its own
-              line (see below), because 65 px beside the Play button shows one logo. */}
-          <div className="flex flex-wrap gap-2">
-            {capabilities.requiresServerUrl && !sessionStatus?.isGuest && !isStreamingOnly && <Link href={detailsUrl} onClick={e => e.stopPropagation()} className="flex-1">
+          {/* Two groups, never one wrapping row: Play and the service strip share the space on the
+              left, the state icons are pinned right. A single `flex-wrap` row let a strip that
+              arrives late (the item syncs its services when you favourite it) halve the Play
+              button, and with no Play button at all — a TMDB-only title — left the heart sitting
+              against the left edge. */}
+          <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              {capabilities.requiresServerUrl && !sessionStatus?.isGuest && !isStreamingOnly && <Link href={detailsUrl} onClick={e => e.stopPropagation()} className="min-w-0 flex-1">
 
-              <Button
-                size="sm"
-                variant="secondary"
-                className={cn(
-                  "h-7 text-xs w-full",
-                )}
-              >
-                <Play className={cn("mr-2 w-2 h-2")} />
-                Play
-              </Button>
-            </Link>
-            }
-            {capabilities.hasStreamingSettings && (currentMovie.WatchProviders?.length ?? 0) > 0 && (
-              <ProviderStrip
-                providers={currentMovie.WatchProviders ?? []}
-                // One or two services sit beside Play; three or more take their own line at
-                // the END of the row (`order-last`), so the favourite and heart icons stay
-                // flush right instead of being pushed inwards by a growing strip.
-                className={cn(
-                  (currentMovie.WatchProviders?.length ?? 0) > 2 ? "order-last basis-full" : "flex-1"
-                )}
-              />
-            )}
-            {!sessionStatus?.isGuest && capabilities.hasAuth && capabilities.hasWatchlist && !isStreamingOnly && (
-              <Button
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className={cn(
+                    "h-7 text-xs w-full",
+                  )}
+                >
+                  <Play className={cn("mr-2 w-2 h-2")} />
+                  Play
+                </Button>
+              </Link>
+              }
+              {capabilities.hasStreamingSettings && (currentMovie.WatchProviders?.length ?? 0) > 0 && (currentMovie.WatchProviders?.length ?? 0) <= 2 && (
+                <ProviderStrip
+                  providers={currentMovie.WatchProviders ?? []}
+                  // One or two services sit beside Play at their own width (`shrink-0`): the strip
+                  // does not compete with the button for the row.
+                  className="shrink-0"
+                />
+              )}
+            </div>
+            <div className="ml-auto flex shrink-0 items-center gap-1">
+              {!sessionStatus?.isGuest && capabilities.hasAuth && capabilities.hasWatchlist && !isStreamingOnly && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={cn(
+                    "h-7 w-7 p-0 text-muted-foreground hover:bg-muted",
+                    isInList && "text-primary"
+                  )}
+                  onClick={handleToggleWatchlist}
+                  disabled={isTogglingWatchlist}
+                >
+                  {useWatchlist ?
+                    <Bookmark weight={isInList ? "fill" : "regular"} className="w-4 h-4" />
+                    : <Star weight={isInList ? "fill" : "regular"} className="w-4 h-4" />
+                  }
+                </Button>
+              )}
+              {(isLikedByMe || isLiked) && <Button
                 size="sm"
                 variant="ghost"
-                className={cn(
-                  "h-7 w-7 p-0 text-muted-foreground hover:bg-muted",
-                  isInList && "text-primary"
-                )}
-                onClick={handleToggleWatchlist}
-                disabled={isTogglingWatchlist}
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={handleUnlike}
+                disabled={isUnliking}
               >
-                {useWatchlist ?
-                  <Bookmark weight={isInList ? "fill" : "regular"} className="w-4 h-4" />
-                  : <Star weight={isInList ? "fill" : "regular"} className="w-4 h-4" />
-                }
-              </Button>
-            )}
-            {(isLikedByMe || isLiked) && <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              onClick={handleUnlike}
-              disabled={isUnliking}
-            >
-              <Heart weight="fill" className="w-3.5 h-3.5 text-destructive" />
-            </Button>}
+                <Heart weight="fill" className="w-3.5 h-3.5 text-destructive" />
+              </Button>}
+            </div>
           </div>
+          {/* Three or more services get a line of their own, below the icons: at that width they
+              would push Play off the row instead of sitting beside it. */}
+          {capabilities.hasStreamingSettings && (currentMovie.WatchProviders?.length ?? 0) > 2 && (
+            <ProviderStrip
+              providers={currentMovie.WatchProviders ?? []}
+              className="w-full"
+            />
+          )}
         </div>
       </div>
     </div>

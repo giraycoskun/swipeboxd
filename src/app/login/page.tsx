@@ -1,10 +1,6 @@
 import { Footer } from "@/components/Footer";
 import LightRays from "@/components/ui/LightRays";
 import LoginContent from "@/components/login/LoginContent";
-import {
-  CircleNotch,
-} from "@phosphor-icons/react/dist/ssr";
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getAsyncRuntimeConfig } from "@/lib/server/runtime-config";
 
@@ -52,14 +48,18 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   };
 }
 
-export default function LoginPage() {
+type SearchParams = { [key: string]: string | string[] | undefined };
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  // Resolved here so the form is part of the server render: `useSearchParams()` inside LoginContent
+  // used to defer the whole screen behind a Suspense boundary (a spinner until hydration, and a
+  // second id tree for every Radix trigger in it).
+  const resolved = await searchParams;
+
   return (
     <main className="flex items-center justify-center overflow-hidden h-svh pt-[env(safe-area-inset-top)] font-sans">
-      <Suspense fallback={
-        <div className="text-foreground">
-          <CircleNotch className="animate-spin" />
-        </div>}>
-        <LoginContent />
+      <>
+        <LoginContent searchParams={resolved} />
         <Footer className="pb-6 absolute bottom-5" />
         <div className="absolute w-full h-full top-0 left-0 -z-1">
           <LightRays
@@ -77,7 +77,7 @@ export default function LoginPage() {
             className="md:block hidden"
           />
         </div>
-      </Suspense>
+      </>
     </main>
   );
 }

@@ -8,7 +8,7 @@ import {
 import { useMovieDetail } from "../movie/MovieDetailProvider";
 import { RandomMovieButton } from "../movie/RandomMovieButton";
 import { toast } from "sonner";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { SessionHeader } from "./SessionHeader";
 import { SessionCodeSection } from "./SessionCodeSection";
 import { MatchesList } from "./MatchesList";
@@ -37,7 +37,6 @@ export default function SessionContent() {
 
     useHotkeys("m, c", () => setIsOpen(prev => !prev), []);
     const { openMovie } = useMovieDetail();
-    const searchParams = useSearchParams();
     const router = useRouter();
 
     const pathname = usePathname();
@@ -98,14 +97,19 @@ export default function SessionContent() {
     };
 
     useEffect(() => {
-        const joinParam = searchParams.get("join");
+        // Read the invite code from the URL instead of `useSearchParams()`: that hook defers its
+        // whole subtree behind a Suspense boundary during the server render, so the shell shipped
+        // with a placeholder and every Radix-generated id after it (a sheet trigger's
+        // `aria-controls`) was computed against a different tree — the hydration mismatch.
+        // The code is only needed client-side, inside an effect, so the URL is enough.
+        const joinParam = new URLSearchParams(window.location.search).get("join");
         if (!joinParam || !isSuccess || joinInProgressRef.current) return;
 
         const normalizedJoin = joinParam.trim().toUpperCase();
         const normalizedActive = activeCode?.trim().toUpperCase();
 
         const removeJoinParam = () => {
-            const params = new URLSearchParams(searchParams.toString());
+            const params = new URLSearchParams(window.location.search);
             params.delete("join");
             const query = params.toString();
             const newUrl = query ? `${pathname}?${query}` : pathname;
@@ -160,7 +164,7 @@ export default function SessionContent() {
         switchPromise.finally(() => {
             joinInProgressRef.current = false;
         });
-    }, [searchParams, isSuccess, activeCode, router, pathname, joinSession, leaveSession]);
+    }, [isSuccess, activeCode, router, pathname, joinSession, leaveSession]);
 
     const handleShare = async () => {
         if (!activeCode) return;
