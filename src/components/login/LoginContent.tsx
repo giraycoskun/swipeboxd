@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useQuickConnectUpdates } from "@/lib/use-updates";
@@ -24,7 +24,16 @@ import { SecureContextCopyFallback } from "../SecureContextCopyFallback";
 
 
 
-export default function LoginContent() {
+/** Server-resolved query string. The login page hands these down as plain values. */
+type SearchParamsRecord = Record<string, string | string[] | undefined>;
+
+interface LoginContentProps {
+  searchParams?: SearchParamsRecord;
+}
+
+const NO_SEARCH_PARAMS: SearchParamsRecord = {};
+
+export default function LoginContent({ searchParams: initialSearchParams = NO_SEARCH_PARAMS }: LoginContentProps) {
   const { capabilities: initialCapabilities, basePath, provider, providerLock, providerUrls } = useRuntimeConfig();
 
   const [selectedProvider, setSelectedProvider] = useState<string>(provider);
@@ -64,7 +73,16 @@ export default function LoginContent() {
   const [plexPinCode, setPlexPinCode] = useState<string | null>(null);
   const [plexAuthUrl, setPlexAuthUrl] = useState<string | null>(null);
 
-  const searchParams = useSearchParams();
+  // `useSearchParams()` would defer this whole screen behind a Suspense boundary, so the form only
+  // appeared after hydration and every Radix id inside it was generated twice. The page reads the
+  // query on the server and passes it down; the same `get` shape keeps the call sites unchanged.
+  const searchParams = useMemo(() => ({
+    get: (key: string) => {
+      const value = initialSearchParams[key];
+      return Array.isArray(value) ? value[0] ?? null : value ?? null;
+    },
+  }), [initialSearchParams]);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -77,7 +95,7 @@ export default function LoginContent() {
       });
 
       // Remove `reason` from the URL after showing the toast
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(window.location.search);
       params.delete("reason");
 
       const query = params.toString();
