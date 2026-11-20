@@ -110,3 +110,5 @@ cannot resolve Docker service names.
 - `MESSER.md` — UI deviations with dates and exits.
 - `.hermes/plans/2026-11-10_0015-messer-swipe-programme.md` — 2.0 scope and decisions.
 - `CONTRIBUTING.md` — commit and review conventions.
+- `docs/maintaining.md` — the maintenance engine (sensors, brief, approval, applier) and the three
+  things that break silently.

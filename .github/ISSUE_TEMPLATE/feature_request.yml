@@ -1,0 +1,30 @@
+name: Feature request
+description: An idea for something Messer Swipe should do
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are read. Pull requests are closed, so a clear description of the problem
+        is worth more than a patch — it is what makes the feature buildable.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that the app makes hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: Optional. A sketch is fine.
+    validations:
+      required: false
+  - type: input
+    id: alternatives
+    attributes:
+      label: What you do instead today
+    validations:
+      required: false
