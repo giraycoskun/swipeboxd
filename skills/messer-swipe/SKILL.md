@@ -12,6 +12,9 @@ what version they run, or how to reset something. The instance ships its own CLI
 
 ```bash
 docker exec <container> messer-swipe status
+docker exec <container> messer-swipe deck --why --limit 5
+docker exec <container> messer-swipe libraries
+docker exec <container> messer-swipe diag
 ```
 
 Read `data.version`, `data.provider`, `data.basePath`, `data.database.sizeBytes`, and

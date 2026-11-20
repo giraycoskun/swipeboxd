@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import os from "node:os";
 import { once } from "node:events";
 import http from "node:http";
 import path from "node:path";
@@ -8,12 +10,15 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const CLI = path.join(ROOT, "bin/messer-swipe.mjs");
+// The CLI falls back to ./.agent-token, so a test that runs in the repo would pick
+// up the developer's own local token. Run every case from an empty directory.
+const SANDBOX = mkdtempSync(path.join(os.tmpdir(), "messer-swipe-cli-"));
 const TOKEN = `msw_AbCd1234_${"x".repeat(43)}`;
 
 function run(args, env = {}) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [CLI, ...args], {
-      cwd: ROOT,
+      cwd: SANDBOX,
       env: { PATH: process.env.PATH, MESSER_SWIPE_TOKEN: "", ...env },
     });
     let stdout = "";
@@ -121,6 +126,38 @@ test("a base path is prefixed onto the api path", async () => {
     async (url) => {
       const result = await run(["status", "--url", url, "--token", TOKEN, "--base-path", "/swipe"]);
       assert.equal(result.code, 0, result.stderr);
+    }
+  );
+});
+
+test("deck passes --why and --limit through as query parameters", async () => {
+  await withServer(
+    (req, res) => {
+      assert.equal(req.url, "/api/v1/deck?limit=5&why=1");
+      res.end(JSON.stringify({ ok: true, api: 1, data: {
+        deckMode: "mixed", kinds: ["movie", "series"], libraries: { total: 2, included: 0, includedIsEverything: true },
+        counts: { returned: 0, swiped: 3, limit: 5 }, provider: { reachable: true, durationMs: 4 },
+        items: [], diagnosis: [{ code: "DECK_EXHAUSTED", severity: "warning", message: "No candidates left; this member has already swiped 3 item(s)." }],
+      }, meta: { version: "2.1.2", durationMs: 4 } }));
+    },
+    async (url) => {
+      const result = await run(["deck", "--url", url, "--token", TOKEN, "--limit", "5", "--why"]);
+      assert.equal(result.code, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout).data.diagnosis[0].code, "DECK_EXHAUSTED");
+    }
+  );
+});
+
+test("a 409 provider-auth answer exits 3 with its hint", async () => {
+  await withServer(
+    (_req, res) => {
+      res.statusCode = 409;
+      res.end(JSON.stringify({ ok: false, api: 1, error: { code: "PROVIDER_AUTH_REQUIRED", message: "no credential", hint: "log in once in the browser" } }));
+    },
+    async (url) => {
+      const result = await run(["deck", "--url", url, "--token", TOKEN]);
+      assert.equal(result.code, 3);
+      assert.equal(JSON.parse(result.stderr).error.code, "PROVIDER_AUTH_REQUIRED");
     }
   );
 });

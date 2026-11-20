@@ -16,10 +16,17 @@ and the CLI picks it up automatically. Nothing to copy, nothing to configure.
 
 ```bash
 docker exec messer-swipe messer-swipe status --human
+docker exec messer-swipe messer-swipe libraries      # what the provider exposes, and what is included
+docker exec messer-swipe messer-swipe deck --why     # the first cards, and why there are none
+docker exec messer-swipe messer-swipe diag > diag.json   # redacted bundle for a bug report
 ```
 
 `--human` prints a summary; without it you get JSON, because the caller is usually an
-agent.
+agent. Every command takes `--url`, `--token` and `--base-path` for a remote instance.
+
+`deck --why` is the one that answers the support question: it separates an empty deck
+caused by an excluded library, an exhausted deck, a filter that matches nothing, and a
+provider that never answered — four failures the UI renders identically.
 
 ## From outside the container
 

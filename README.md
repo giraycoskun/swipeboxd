@@ -94,6 +94,9 @@ Read [`AGENTS.md`](AGENTS.md) — the code contract, the invariants and the comm
 (lint, typecheck, tests) is the gate; `npm run doctor` diagnoses a deployment; `npm run e2e` drives the
 contract against a running instance.
 
+To **operate** an instance with an agent rather than change its code, see [`docs/agents.md`](docs/agents.md):
+the CLI ships inside the image, so `docker exec <container> messer-swipe status` is the whole setup.
+
 Contributions are closed: no pull requests. **Issues and discussions are open** — bug reports and ideas
 are read, and a bug with a reproduction gets fixed. A vulnerability goes to a private advisory, per
 [`SECURITY.md`](SECURITY.md).
