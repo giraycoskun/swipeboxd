@@ -13,15 +13,18 @@ import { DeckError } from "./DeckError";
 import { DeckLoading } from "./DeckLoading";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
-import { 
+import {
   useSession, 
   useDeck, 
   useStats, 
   useMembers, 
   useSwipe, 
   useUndoSwipe, 
-  useUpdateSession 
+  useUpdateSession,
+  useUserSettings
 } from "@/hooks/api";
+import { useRuntimeConfig } from "@/lib/runtime-config";
+import { hasAppliedFilters as deckHasAppliedFilters } from "@/lib/filters";
 import { useBackgroundStore } from "@/lib/background-store";
 import { ProviderType } from "@/lib/providers/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -53,6 +56,8 @@ export function CardDeck() {
     return deckData?.pages.flatMap(page => page.items) || [];
   }, [deckData]);
   const { data: members } = useMembers();
+  const { capabilities } = useRuntimeConfig();
+  const { data: userSettings } = useUserSettings();
   
   const swipeMutation = useSwipe();
   const undoSwipeMutation = useUndoSwipe();
@@ -156,34 +161,23 @@ export function CardDeck() {
   };
 
   const hasAppliedFilters = useMemo(() => {
+    // One definition, shared with the drawer (`src/lib/filters.ts`): the dot shows
+    // when the stored filters narrow the deck. It used to light up for a sort the
+    // hybrid deck had forced on itself, which is not a user choice.
     if (!sessionStatus?.filters) return false;
-    const {
-      genres,
-      excludedGenres,
-      yearRange,
-      minCommunityRating,
-      officialRatings,
-      excludedOfficialRatings,
-      runtimeRange,
-      themes,
-      excludedThemes,
-      sortBy,
-      tmdbLanguages
-    } = sessionStatus.filters;
-    const hasNonDefaultLanguages = !!(tmdbLanguages && tmdbLanguages.length > 0);
-    const defaultSort = sessionStatus?.provider === ProviderType.TMDB ? "Popular" : "Trending";
-    return (genres && genres.length > 0) || 
-           (excludedGenres && excludedGenres.length > 0) ||
-           (minCommunityRating !== undefined && minCommunityRating > 0) || 
-           (yearRange !== undefined) || 
-           (officialRatings && officialRatings.length > 0) || 
-           (excludedOfficialRatings && excludedOfficialRatings.length > 0) ||
-           (runtimeRange !== undefined) ||
-           (themes && themes.length > 0) ||
-           (excludedThemes && excludedThemes.length > 0) ||
-           (sortBy !== undefined && sortBy !== defaultSort) ||
-           hasNonDefaultLanguages;
-  }, [sessionStatus?.filters]);
+    return deckHasAppliedFilters(sessionStatus.filters, {
+      hasSeries: capabilities.hasSeries,
+      hybridCapable:
+        capabilities.hasStreamingSettings && sessionStatus.provider === ProviderType.JELLYFIN,
+      defaultSort: sessionStatus.provider === ProviderType.TMDB ? "Popular" : "Trending",
+      // The dot only asks whether a stored value is a narrowing, so the library's
+      // real year bounds are not needed: a stored range is always a choice.
+      minYear: 1900,
+      maxYear: new Date().getFullYear(),
+      availableWatchProviderIds: [],
+      settingsWatchProviders: userSettings?.watchProviders ?? [],
+    });
+  }, [sessionStatus, capabilities, userSettings]);
 
   const onSwipe = useCallback((id: string, direction: "left" | "right") => {
     // Check limits

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { VirtuosoGrid } from "react-virtuoso";
 import {
   Drawer,
@@ -40,7 +40,18 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 
-import { deriveDeckMode } from "@/lib/deck-mode";
+import {
+  HYBRID_SORT,
+  RUNTIME_MAX,
+  effectiveDefaultSort,
+  filtersFromState,
+  hybridMergeActive,
+  isFilterNoOp,
+  resolveFilterState,
+  stableFiltersKey,
+  type FilterContext,
+  type FilterState,
+} from "@/lib/filters";
 import { HybridTooltip, HybridTooltipTrigger, HybridTooltipContent } from "@/components/ui/hybrid-tooltip";
 import type { DeckMode } from "@/types/session";
 
@@ -79,7 +90,7 @@ export function FilterDrawer({ open, onOpenChange, currentFilters, onSave }: Fil
   const [sortBy, setSortBy] = useState<string>("Trending");
   const [unplayedOnly, setUnplayedOnly] = useState<boolean>(true);
   const [yearRange, setYearRange] = useState<[number, number]>([1900, new Date().getFullYear()]);
-  const [runtimeRange, setRuntimeRange] = useState<[number, number]>([0, 240]);
+  const [runtimeRange, setRuntimeRange] = useState<[number, number]>([0, RUNTIME_MAX]);
   const [minRating, setMinRating] = useState<number>(0);
   const [providersScrollParent, setProvidersScrollParent] = useState<HTMLElement | null>(null);
   const [providerSearch, setProviderSearch] = useState<string>("");
@@ -107,12 +118,6 @@ export function FilterDrawer({ open, onOpenChange, currentFilters, onSave }: Fil
   const members = watchProvidersData?.members || [];
   const isLoading = isLoadingFilters || isLoadingThemes || isLoadingProviders;
 
-  // Hybrid deck (Jellyfin library + streaming catalogs): merging two backends
-  // only works on the full seeded-shuffled deck, so sorting is Random-only
-  const hybridActive = capabilities.hasStreamingSettings
-    && session?.provider === ProviderType.JELLYFIN
-    && availableWatchProviders.length > 0;
-
   const minYearLimit = useMemo(() => {
     if (!years || years.length === 0) return 1900;
     const yearNums = years.map((y: MediaYear) => y.Value).filter((n) => !isNaN(n));
@@ -125,139 +130,148 @@ export function FilterDrawer({ open, onOpenChange, currentFilters, onSave }: Fil
     return yearNums.length > 0 ? Math.max(...yearNums) : new Date().getFullYear();
   }, [years]);
 
+  /**
+   * Everything the drawer's defaults depend on. `src/lib/filters.ts` owns the two
+   * conversions (stored -> state -> payload); this is only the instance's facts.
+   */
+  const filterContext = useMemo<FilterContext>(() => ({
+    hasSeries: capabilities.hasSeries,
+    // The server merges catalogues only for a library provider with a TMDB token
+    // (media-service `isHybridCapable`); capability alone is not the merge.
+    hybridCapable: capabilities.hasStreamingSettings && session?.provider === ProviderType.JELLYFIN,
+    defaultSort,
+    minYear: minYearLimit,
+    maxYear: maxYearLimit,
+    availableWatchProviderIds,
+    settingsWatchProviders: userSettings?.watchProviders ?? [],
+  }), [
+    capabilities.hasSeries,
+    capabilities.hasStreamingSettings,
+    session?.provider,
+    defaultSort,
+    minYearLimit,
+    maxYearLimit,
+    availableWatchProviderIds,
+    userSettings?.watchProviders,
+  ]);
+
+  /**
+   * Hybrid = a merge that will actually run. It was computed from the services
+   * *available* in the region before, so a plain Jellyfin deck with a TMDB token
+   * believed it was hybrid, hid every sort but Random, and forced Random into the
+   * saved filters. Selecting a service is what starts a merge.
+   */
+  const hybridMerge = hybridMergeActive(filterContext, selectedWatchProviders);
+  const sortDefault = effectiveDefaultSort(filterContext, selectedWatchProviders);
+
+  /**
+   * A sort that was only its mode's default follows the mode; a real choice stays.
+   * Selecting or clearing services flips the merge on and off, and the locked
+   * "Random" used to survive the flip and be stored as if the user had picked it.
+   */
+  const sortForSelection = (nextSelection: string[], currentSort: string) => {
+    const previousDefault = effectiveDefaultSort(filterContext, selectedWatchProviders);
+    const upcomingDefault = effectiveDefaultSort(filterContext, nextSelection);
+    return currentSort === previousDefault ? upcomingDefault : currentSort;
+  };
 
   const sortOptions = useMemo(() => {
-    if (hybridActive) return ["Random"];
+    if (hybridMerge) return [HYBRID_SORT];
     return [
-      defaultSort,
-      ...SORT_OPTIONS.filter(option => option !== defaultSort)
+      sortDefault,
+      ...SORT_OPTIONS.filter(option => option !== sortDefault)
     ];
-  }, [defaultSort, hybridActive]);
+  }, [sortDefault, hybridMerge]);
+
+  /**
+   * Applied once per opening, never while the user is editing: the effect used to
+   * depend on `currentFilters` by identity, and CardDeck hands it a fresh
+   * `{ genres: [] }` fallback on every render, so any unrelated re-render of the
+   * deck reset the drawer under the user's fingers.
+   */
+  const initialisedFor = useRef<string | null>(null);
+  const appliedState = (next: FilterState) => {
+    setSelectedGenres(next.genres);
+    setExcludedGenres(next.excludedGenres);
+    setGenreFilterMode(next.genreMode);
+    setSelectedRatings(next.ratings);
+    setExcludedRatings(next.excludedRatings);
+    setRatingFilterMode(next.ratingMode);
+    setSelectedWatchProviders(next.watchProviders);
+    setSelectedThemes(next.themes);
+    setExcludedThemes(next.excludedThemes);
+    setThemeFilterMode(next.themeMode);
+    setSelectedLanguages(next.languages);
+    setSortBy(next.sortBy);
+    setUnplayedOnly(next.unplayedOnly);
+    setYearRange(next.yearRange);
+    setRuntimeRange(next.runtimeRange);
+    setMinRating(next.minRating);
+    setMediaKinds(next.mediaKinds);
+    setShowUnit(next.showUnit);
+    setSeriesStatus(next.seriesStatus);
+    setWatchingOnly(next.watchingOnly);
+    setProviderSearch("");
+    setShowAllLanguages(false);
+  };
+
+  const currentState = (): FilterState => ({
+    mediaKinds,
+    showUnit,
+    seriesStatus,
+    watchingOnly,
+    genres: selectedGenres,
+    excludedGenres,
+    genreMode: genreFilterMode,
+    ratings: selectedRatings,
+    excludedRatings,
+    ratingMode: ratingFilterMode,
+    watchProviders: selectedWatchProviders,
+    themes: selectedThemes,
+    excludedThemes,
+    themeMode: themeFilterMode,
+    languages: selectedLanguages,
+    sortBy,
+    unplayedOnly,
+    yearRange,
+    runtimeRange,
+    minRating,
+  });
+
+  const filtersKey = stableFiltersKey(currentFilters);
+
+  const applyWatchProviders = (next: string[]) => {
+    setSelectedWatchProviders(next);
+    setSortBy((current) => sortForSelection(next, current));
+  };
 
   useEffect(() => {
-    if (open) {
-      setSelectedGenres(currentFilters?.genres || []);
-      setSelectedRatings(currentFilters?.officialRatings || []);
-      setSelectedWatchProviders(currentFilters?.watchProviders || availableWatchProviderIds);
-      setSelectedThemes(currentFilters?.themes || []);
-      if (currentFilters?.excludedGenres && currentFilters.excludedGenres.length > 0) {
-        setExcludedGenres(currentFilters.excludedGenres);
-        setSelectedGenres([]);
-        setGenreFilterMode("exclude");
-      } else {
-        setExcludedGenres([]);
-        setGenreFilterMode("include");
-      }
-      if (currentFilters?.excludedOfficialRatings && currentFilters.excludedOfficialRatings.length > 0) {
-        setExcludedRatings(currentFilters.excludedOfficialRatings);
-        setSelectedRatings([]);
-        setRatingFilterMode("exclude");
-      } else {
-        setExcludedRatings([]);
-        setRatingFilterMode("include");
-      }
-      if (currentFilters?.excludedThemes && currentFilters.excludedThemes.length > 0) {
-        setExcludedThemes(currentFilters.excludedThemes);
-        setSelectedThemes([]);
-        setThemeFilterMode("exclude");
-      } else {
-        setExcludedThemes([]);
-        setThemeFilterMode("include");
-      }
-      setSelectedLanguages(currentFilters?.tmdbLanguages ?? DEFAULT_LANGUAGES);
-      setSortBy(hybridActive ? "Random" : (currentFilters?.sortBy || defaultSort));
-      setUnplayedOnly(currentFilters?.unplayedOnly ?? true);
-      setYearRange(currentFilters?.yearRange || [minYearLimit, maxYearLimit]);
-      setRuntimeRange(currentFilters?.runtimeRange || [0, 240]);
-      setMinRating(currentFilters?.minCommunityRating || 0);
-      setProviderSearch("");
-      // Legacy filter objects only carry a deckMode; translate it into the two rows
-      // so an existing user's deck is what they left it as.
-      const legacyMode = currentFilters?.deckMode;
-      const kinds = currentFilters?.kinds?.filter((kind): kind is "movie" | "series" => kind === "movie" || kind === "series");
-      // No stored mode and no kinds = written before shows existed: on a provider that has
-      // shows that means "everything", matching withDeckDefaults() on the server.
-      const fallbackKinds: ("movie" | "series")[] =
-        legacyMode === "mixed" ? ["movie", "series"]
-          : legacyMode === "movies" ? ["movie"]
-            : legacyMode ? ["series"]
-              : capabilities.hasSeries ? ["movie", "series"] : ["movie"];
-      setMediaKinds(kinds?.length ? kinds : fallbackKinds);
-      setShowUnit(currentFilters?.showUnit ?? (legacyMode === "continue" || legacyMode === "episodes" ? "episode" : "series"));
-      setSeriesStatus(currentFilters?.status ?? []);
-      setWatchingOnly(currentFilters?.started === "inProgress" || legacyMode === "continue");
+    if (!open) {
+      initialisedFor.current = null;
+      return;
     }
-  }, [open, currentFilters, availableWatchProviderIds, minYearLimit, maxYearLimit, defaultSort, hybridActive]);
-
-  const normalizeFilters = (f: Filters): Filters => {
-    const isYearDefault = !f.yearRange || (f.yearRange[0] === minYearLimit && f.yearRange[1] === maxYearLimit);
-    const isRuntimeDefault = !f.runtimeRange || (f.runtimeRange[0] === 0 && f.runtimeRange[1] === 240);
-    const isLanguageDefault = !f.tmdbLanguages ||
-      (f.tmdbLanguages.length === DEFAULT_LANGUAGES.length &&
-        f.tmdbLanguages.every((lang) => DEFAULT_LANGUAGES.includes(lang)));
-
-    // Logic: 
-    // - If all providers are selected OR none are selected, we treat it as "no filter" (undefined)
-    // - If a specific subset is selected, we send the explicit list
-    const isWatchProvidersDefault = !f.watchProviders ||
-      f.watchProviders.length === 0 ||
-      f.watchProviders.length === availableWatchProviderIds.length;
-
-    return {
-      genres: f.genres?.length ? f.genres : [],
-      excludedGenres: f.excludedGenres?.length ? f.excludedGenres : undefined,
-      officialRatings: f.officialRatings?.length ? f.officialRatings : undefined,
-      excludedOfficialRatings: f.excludedOfficialRatings?.length ? f.excludedOfficialRatings : undefined,
-      watchProviders: isWatchProvidersDefault ? undefined : f.watchProviders,
-      themes: f.themes?.length ? f.themes : undefined,
-      excludedThemes: f.excludedThemes?.length ? f.excludedThemes : undefined,
-      tmdbLanguages: isLanguageDefault ? undefined : f.tmdbLanguages,
-      sortBy: (f.sortBy === defaultSort || !f.sortBy) ? undefined : f.sortBy,
-      unplayedOnly: f.unplayedOnly ?? true,
-      yearRange: isYearDefault ? undefined : f.yearRange,
-      runtimeRange: isRuntimeDefault ? undefined : f.runtimeRange,
-      minCommunityRating: (f.minCommunityRating && f.minCommunityRating > 0) ? f.minCommunityRating : undefined,
-      // The selected kinds travel with the filters so the deck refetches when they
-      // change. `deckMode` is derived from them plus the show options — never typed
-      // by the user — and stays on the object because the server dispatches on it.
-      kinds: f.kinds?.length ? f.kinds : ["movie"],
-      showUnit: f.showUnit,
-      status: f.status?.length ? f.status : undefined,
-      started: f.started,
-      deckMode: deriveDeckMode({ kinds: f.kinds, showUnit: f.showUnit, started: f.started })
-    };
-  };
-
-  const getCurrentFiltersObject = (): Filters => {
-    return normalizeFilters({
-      genres: selectedGenres,
-      excludedGenres,
-      officialRatings: selectedRatings,
-      excludedOfficialRatings: excludedRatings,
-      watchProviders: selectedWatchProviders,
-      themes: selectedThemes,
-      excludedThemes,
-      tmdbLanguages: selectedLanguages,
-      sortBy: sortBy,
-      unplayedOnly: unplayedOnly,
-      yearRange: yearRange,
-      runtimeRange: runtimeRange,
-      minCommunityRating: minRating,
-      kinds: mediaKinds,
-      showUnit,
-      status: seriesStatus,
-      started: watchingOnly ? "inProgress" : "any",
-    });
-  };
+    // The default service selection comes from the provider list, so the drawer
+    // waits for it instead of initialising twice and wiping an early edit.
+    if (isLoading) return;
+    const key = `${filtersKey}|${filterContext.settingsWatchProviders.join(",")}|${filterContext.availableWatchProviderIds.join(",")}|${filterContext.minYear}-${filterContext.maxYear}`;
+    if (initialisedFor.current === key) return;
+    initialisedFor.current = key;
+    appliedState(resolveFilterState(currentFilters, filterContext));
+    // appliedState only touches setters; the state it writes is not a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isLoading, filtersKey, filterContext]);
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      const newFilters = getCurrentFiltersObject();
-      const currentFiltersNorm = normalizeFilters(currentFilters);
-
-      if (JSON.stringify(newFilters) !== JSON.stringify(currentFiltersNorm)) {
-        onSave(newFilters);
+      // Nothing is compared unless the drawer was actually initialised: a sheet
+      // closed before its data arrived would otherwise save its placeholders.
+      if (initialisedFor.current) {
+        const next = currentState();
+        if (!isFilterNoOp(currentFilters, next, filterContext)) {
+          onSave(filtersFromState(next, filterContext));
+        }
       }
+      initialisedFor.current = null;
     }
     onOpenChange(newOpen);
   };
@@ -268,32 +282,14 @@ export function FilterDrawer({ open, onOpenChange, currentFilters, onSave }: Fil
     return `${h}:${m.toString().padStart(2, '0')}`;
   };
 
+  /**
+   * Reset means "no filters", not "films": the unconfigured deck on a provider
+   * with shows is every kind, so resetting must not narrow it to movies. It also
+   * starts from the same resolver the drawer opens with, which is why a reset on
+   * an already-unfiltered deck now saves nothing and does not rebuild the deck.
+   */
   const resetAll = () => {
-    setSelectedGenres([]);
-    setExcludedGenres([]);
-    setGenreFilterMode("include");
-    setSelectedRatings([]);
-    setExcludedRatings([]);
-    setRatingFilterMode("include");
-    setSelectedWatchProviders(availableWatchProviderIds);
-    setSelectedThemes([]);
-    setExcludedThemes([]);
-    setThemeFilterMode("include");
-    setSelectedLanguages(DEFAULT_LANGUAGES);
-    setShowAllLanguages(false);
-    setSortBy(defaultSort);
-    setUnplayedOnly(true);
-    setYearRange([minYearLimit, maxYearLimit]);
-    setRuntimeRange([0, 240]);
-    setMinRating(0);
-    setProviderSearch("");
-    // The Media section is part of the filters, so Reset clears it too — back to
-    // the default deck (movies, whole shows, no narrowing) rather than leaving a
-    // shows-or-episodes deck behind a reset-looking drawer.
-    setMediaKinds(["movie"]);
-    setShowUnit("series");
-    setSeriesStatus([]);
-    setWatchingOnly(false);
+    appliedState(resolveFilterState(null, filterContext));
   };
 
   const filteredSortOptions = sortOptions;
@@ -568,20 +564,38 @@ export function FilterDrawer({ open, onOpenChange, currentFilters, onSave }: Fil
                   )}
                 </div>
 
-                {/* Sort Section */}
+                {/* Sort Section. A hybrid deck merges the library with streaming
+                    catalogues on one seeded shuffle, so it cannot offer a pick:
+                    the row states the order and why, instead of showing a choice
+                    of one that looks like a filter you forgot to clear. */}
                 <div className="space-y-4 -mb-4">
-                  <div className="flex flex-wrap gap-2">
-                    {filteredSortOptions.map((option) => (
-                      <Badge
-                        key={option}
-                        variant={sortBy === option ? "default" : "outline"}
-                        className="cursor-pointer text-sm py-1.5 px-4 rounded-none transition-colors"
-                        onClick={() => setSortBy(option)}
-                      >
-                        {option}
-                      </Badge>
-                    ))}
-                  </div>
+                  {hybridMerge ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="default" className="text-sm py-1.5 px-4 rounded-none">
+                          {HYBRID_SORT}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground font-medium">
+                        Your library and the services you picked are merged into one deck, so
+                        the order is always a shuffle. Deselect every service to sort the
+                        library on its own.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {filteredSortOptions.map((option) => (
+                        <Badge
+                          key={option}
+                          variant={sortBy === option ? "default" : "outline"}
+                          className="cursor-pointer text-sm py-1.5 px-4 rounded-none transition-colors"
+                          onClick={() => setSortBy(option)}
+                        >
+                          {option}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Watched Section */}
@@ -664,14 +678,14 @@ export function FilterDrawer({ open, onOpenChange, currentFilters, onSave }: Fil
                   <div className="flex justify-between items-center">
                     <Label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Runtime</Label>
                     <Badge variant="secondary" className="tabular-nums">
-                      {formatRuntime(runtimeRange[0])} — {runtimeRange[1] === 240 ? "4:00+" : formatRuntime(runtimeRange[1])}
+                      {formatRuntime(runtimeRange[0])} — {runtimeRange[1] === RUNTIME_MAX ? "4:00+" : formatRuntime(runtimeRange[1])}
                     </Badge>
                   </div>
                   <div className="px-2">
                     <Slider
                       value={runtimeRange}
                       min={0}
-                      max={240}
+                      max={RUNTIME_MAX}
                       step={5}
                       onValueChange={(val) => setRuntimeRange(val as [number, number])}
                     />
@@ -969,8 +983,8 @@ export function FilterDrawer({ open, onOpenChange, currentFilters, onSave }: Fil
                         )}
                       </div>
                         <div className="flex gap-3">
-                          <button onClick={() => setSelectedWatchProviders(availableWatchProviderIds)} className="text-xs font-semibold cursor-pointer text-primary hover:underline">Select all</button>
-                          <button onClick={() => setSelectedWatchProviders([])} className="text-xs font-semibold cursor-pointer text-muted-foreground hover:underline">Clear</button>
+                          <button onClick={() => applyWatchProviders(availableWatchProviderIds)} className="text-xs font-semibold cursor-pointer text-primary hover:underline">Select all</button>
+                          <button onClick={() => applyWatchProviders([])} className="text-xs font-semibold cursor-pointer text-muted-foreground hover:underline">Clear</button>
                         </div>
                       </div>
                       <InputGroup className="bg-muted/30 border-input">
@@ -1022,7 +1036,7 @@ export function FilterDrawer({ open, onOpenChange, currentFilters, onSave }: Fil
 
                             return (
                               <button
-                                onClick={() => setSelectedWatchProviders(prev => prev.includes(provider.Id) ? prev.filter(id => id !== provider.Id) : [...prev, provider.Id])}
+                                onClick={() => applyWatchProviders(selectedWatchProviders.includes(provider.Id) ? selectedWatchProviders.filter(id => id !== provider.Id) : [...selectedWatchProviders, provider.Id])}
                                 className={cn(
                                   "relative flex items-center gap-3 p-3 rounded-xl border transition-all text-left cursor-pointer w-full",
                                   isSelected
