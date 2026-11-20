@@ -83,7 +83,8 @@ export function MatchTakeover({ item, sessionCode, onContinue, onOpenDetails }: 
       role="dialog"
       aria-modal="true"
       aria-label="It's a match"
-      className="fixed inset-0 z-50 flex bg-background/97"
+      data-match-takeover
+      className="fixed inset-0 z-50 flex bg-background"
     >
       <motion.div
         initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}

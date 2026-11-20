@@ -22,6 +22,7 @@
     "doctor": "node scripts/doctor.mjs",
     "e2e": "node e2e/contract.mjs",
     "e2e:deck": "node e2e/deck.mjs",
+    "e2e:session": "node e2e/session.mjs",
     "e2e:live": "node e2e/live.mjs",
     "test:cli": "node --test bin/test/"
   },

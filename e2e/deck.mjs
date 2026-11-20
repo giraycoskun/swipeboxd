@@ -88,6 +88,7 @@ const login = async (page, displayName = "Reviewer") => {
     }
     await submit.click();
     await page.waitForTimeout(12000);
+    await waitDeck(page);
     return;
   }
   for (let attempt = 0; attempt < 4; attempt++) {
@@ -101,8 +102,21 @@ const login = async (page, displayName = "Reviewer") => {
   await page.waitForTimeout(9000);
 };
 
+const waitDeck = async (page, timeout = 45000) => {
+  await page.waitForFunction(() => {
+    const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+    return !!el?.closest('[data-slot="card"]');
+  }, { timeout }).catch(() => {});
+  await page.waitForTimeout(400);
+};
+
 const topTitle = (page) =>
-  page.evaluate(() => document.querySelector('[data-slot="card"] h2')?.textContent?.trim() ?? null);
+  page.evaluate(() => {
+    // Four cards stack back-to-front in the DOM; ask the screen which one is on top.
+    const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+    const card = el?.closest('[data-slot="card"]');
+    return card?.querySelector("h2")?.textContent?.trim() ?? null;
+  });
 
 const main = async () => {
   fs.mkdirSync(SHOTS, { recursive: true });
@@ -128,7 +142,9 @@ const main = async () => {
 
   // 1. D likes, and the card actually leaves
   await page.keyboard.press("d");
-  await page.waitForTimeout(1600);
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: path.join(SHOTS, "deck-hints.png") });
+  await page.waitForTimeout(700);
   const afterD = await topTitle(page);
   check("D likes the top card", afterD !== first, `${first} → ${afterD}`);
 

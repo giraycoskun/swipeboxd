@@ -35,7 +35,7 @@ export function SpoilerPanel({
         {runtime && <span className="font-mono tabular-nums">{runtime}</span>}
       </p>
       <p className="max-w-[26ch] text-xs leading-relaxed text-muted-foreground">
-        Unplayed — the still, the title and the synopsis stay hidden until you ask.
+        Unplayed — the still, the episode title and the synopsis stay hidden until you ask.
       </p>
       <Button
         type="button"
