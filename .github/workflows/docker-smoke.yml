@@ -41,7 +41,7 @@ jobs:
             sleep 1
           done
           # no -f: a 401 is the answer we are asserting, and its body is the envelope
-docker exec smoke curl -s http://127.0.0.1:4321/api/v1/status > /tmp/status.json
+          docker exec smoke curl -s http://127.0.0.1:4321/api/v1/status > /tmp/status.json
           docker rm -f smoke
           cat /tmp/status.json
           grep -q '"code":"UNAUTHORIZED"' /tmp/status.json
