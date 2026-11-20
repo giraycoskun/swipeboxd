@@ -176,6 +176,57 @@ const main = async () => {
   });
   check("the hints fade again", Number(expired) < 0.5, expired);
 
+  // 7. the spoiler mask — a fresh page so the episode fixture is the only card
+  const episodeCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const ep = await episodeCtx.newPage();
+  const episode = {
+    Id: "fixture-episode-1",
+    Kind: "episode",
+    Name: "The One Where It Was Spoiled",
+    SeriesName: "Fixture Show",
+    SeasonNumber: 1,
+    EpisodeNumber: 4,
+    RunTimeTicks: 2700000000,
+    Overview: "SECRET SPOILER: the butler did it.",
+    ImageTags: { Primary: "episode-primary" },
+    UserData: { IsFavorite: false, Played: false },
+  };
+  await ep.route("**/api/media/items**", (r) =>
+    r.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [episode], hasMore: false }) }));
+  await ep.route("**/api/media/item/**", (r) =>
+    r.fulfill({ contentType: "application/json", body: JSON.stringify(episode) }));
+  await login(ep, "Spoiler Reviewer");
+  await ep.waitForTimeout(2500);
+  await ep.screenshot({ path: path.join(SHOTS, "spoiler-masked.png") });
+
+  const masked = await ep.evaluate(() => {
+    const card = document.querySelector('[data-slot="card"]');
+    return {
+      text: card?.innerText ?? "",
+      images: card?.querySelectorAll("img").length ?? 0,
+      reveal: Array.from(card?.querySelectorAll("button") ?? []).some((b) => /reveal/i.test(b.textContent ?? "")),
+    };
+  });
+  check("a masked episode hides its title", !masked.text.includes(episode.Name), masked.text.replace(/\s+/g, " ").slice(0, 80));
+  check("a masked episode hides its synopsis", !masked.text.includes("SECRET SPOILER"), masked.text.replace(/\s+/g, " ").slice(0, 80));
+  check("a masked episode loads no still", masked.images === 0, `${masked.images} img`);
+  check("the mask offers a reveal", masked.reveal);
+  check("the mask still says which episode it is", /Fixture Show/.test(masked.text) && /S1E4/.test(masked.text), masked.text.replace(/\s+/g, " ").slice(0, 80));
+
+  await ep.evaluate(() => {
+    const card = document.querySelector('[data-slot="card"]');
+    const button = Array.from(card?.querySelectorAll("button") ?? []).find((b) => /reveal/i.test(b.textContent ?? ""));
+    button?.click();
+  });
+  await ep.waitForTimeout(800);
+  await ep.screenshot({ path: path.join(SHOTS, "spoiler-revealed.png") });
+  const revealed = await ep.evaluate(() => document.querySelector('[data-slot="card"]')?.innerText ?? "");
+  check("revealing restores the title and synopsis",
+    revealed.includes(episode.Name) && revealed.includes("SECRET SPOILER"),
+    revealed.replace(/\s+/g, " ").slice(0, 80));
+
+  await episodeCtx.close();
+
   await browser.close();
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${failed.length === 0 ? "e2e: all checks passed" : `e2e: ${failed.length} failed`} · shots in e2e/shots/`);

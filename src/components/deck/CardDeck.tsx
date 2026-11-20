@@ -26,6 +26,7 @@ import {
 } from "@/hooks/api";
 import { useRuntimeConfig } from "@/lib/runtime-config";
 import { hasAppliedFilters as deckHasAppliedFilters } from "@/lib/filters";
+import { isSpoilerRisk } from "@/lib/media-kind";
 import { useBackgroundStore } from "@/lib/background-store";
 import { ProviderType } from "@/lib/providers/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -244,7 +245,9 @@ export function CardDeck() {
 
   useEffect(() => {
     const topItem = activeDeck[0];
-    if (topItem) {
+    // A masked episode must not leak through the backdrop either: the blurred
+    // still is the same frame the card is hiding.
+    if (topItem && !isSpoilerRisk(topItem)) {
       setBackgroundItem({ id: topItem.Id, blurDataURL: topItem.BlurDataURL });
     } else {
       setBackgroundItem(null);
