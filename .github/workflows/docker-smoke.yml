@@ -1,0 +1,46 @@
+name: docker smoke
+
+# The only test that proves the *shipped artefact* carries the CLI: build the image
+# and run `messer-swipe --version` inside it. Path-filtered because a full image
+# build is minutes, and the image only changes when the Dockerfile or the CLI does.
+
+on:
+  push:
+    branches: [develop, master]
+    paths:
+      - "Dockerfile"
+      - "bin/**"
+      - ".github/workflows/docker-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Build the image
+        run: docker build --build-arg APP_VERSION=smoke -t messer-swipe:smoke .
+      - name: The CLI is in the image and reports the build
+        run: |
+          OUT=$(docker run --rm --entrypoint messer-swipe messer-swipe:smoke --version)
+          echo "$OUT"
+          echo "$OUT" | grep -q "messer-swipe smoke (api 1)"
+      - name: The agent surface answers without a token
+        run: |
+          docker run -d --name smoke -e AUTH_SECRET="smoke-secret-smoke-secret-000000000" messer-swipe:smoke
+          for i in $(seq 1 60); do
+            if docker exec smoke wget -qO- http://127.0.0.1:4321/api/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec smoke wget -qO- http://127.0.0.1:4321/api/v1/status > /tmp/status.json || true
+          docker rm -f smoke
+          cat /tmp/status.json
+          grep -q '"code":"UNAUTHORIZED"' /tmp/status.json
