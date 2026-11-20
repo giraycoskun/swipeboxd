@@ -16,8 +16,6 @@ import {
   resolveCredentials,
 } from "@/lib/dev/identities";
 
-export const dynamic = "force-dynamic";
-
 const NOT_FOUND = () => new NextResponse(null, { status: 404 });
 
 function safeEqual(left: string, right: string): boolean {
