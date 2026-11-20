@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { deckFiltersKey, filtersFingerprint } from "./deck-cache";
+import { DECK_CACHE_LIMITS, DeckCacheService, deckFiltersKey, filtersFingerprint } from "./deck-cache";
 
 test("switching Movies to Shows is a different deck, so a different cache key", () => {
   const movies = deckFiltersKey({ genres: [], kinds: ["movie"], deckMode: "movies" }, { libraries: [] });
@@ -36,4 +36,28 @@ test("a filter object with no mode is the movies deck, not a fourth key", () => 
   // they differ in that field — what matters is that the mode itself resolves.
   assert.equal(legacy.deckMode, "movies");
   assert.equal(explicit.deckMode, "movies");
+});
+
+test("the cache is bounded: the oldest deck is evicted, never accumulated", () => {
+  const cache = new DeckCacheService();
+  const filters = { kinds: ["movie"], deckMode: "movies" as const };
+
+  for (let i = 0; i <= DECK_CACHE_LIMITS.maxEntries; i++) {
+    cache.setCachedDeck(`session-${i}`, "jellyfin", filters, [`item-${i}`], new Map());
+  }
+
+  assert.equal(cache.size, DECK_CACHE_LIMITS.maxEntries);
+  assert.equal(cache.getCachedDeck("session-0", "jellyfin", filters), null, "the first deck should be gone");
+  assert.ok(cache.getCachedDeck(`session-${DECK_CACHE_LIMITS.maxEntries}`, "jellyfin", filters), "the newest deck stays");
+});
+
+test("a deck for the same session and shape replaces its entry instead of adding one", () => {
+  const cache = new DeckCacheService();
+  const filters = { kinds: ["movie"], deckMode: "movies" as const };
+
+  cache.setCachedDeck("s", "jellyfin", filters, ["a"], new Map());
+  cache.setCachedDeck("s", "jellyfin", filters, ["b"], new Map());
+
+  assert.equal(cache.size, 1);
+  assert.deepEqual(cache.getCachedDeck("s", "jellyfin", filters)?.orderedIds, ["b"]);
 });

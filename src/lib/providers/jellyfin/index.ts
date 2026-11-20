@@ -322,7 +322,7 @@ export class JellyfinProvider implements MediaProvider {
     });
     return {
       data: res.data,
-      contentType: res.headers["content-type"] || "image/webp"
+      contentType: (res.headers["content-type"] as string) || "image/webp"
     };
   }
 

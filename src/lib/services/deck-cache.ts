@@ -12,6 +12,21 @@ interface DeckCacheEntry {
 const CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes
 
 /**
+ * How many deck shapes may live at once.
+ *
+ * The TTL alone was not a bound: an entry was only deleted when someone asked for
+ * that exact key again, so a long-lived process with many filter combinations (and
+ * any member who keeps changing the drawer) only ever grew. Twelve covers a
+ * household's simultaneous shapes with room to spare; the oldest is evicted first.
+ * An entry holds up to `DECK_SHORTLIST` (800) items, so twelve is tens of MB, not
+ * hundreds.
+ */
+const MAX_CACHE_ENTRIES = 12;
+
+/** Exported so a test can prove the bound without guessing the constant. */
+export const DECK_CACHE_LIMITS = { maxEntries: MAX_CACHE_ENTRIES, ttlMs: CACHE_TTL_MS } as const;
+
+/**
  * Deterministic fingerprint of a filter object: same shape, same order, same key.
  * Exported so a test can prove two deck shapes differ without a database.
  */
@@ -50,7 +65,7 @@ export function deckFiltersKey(filters: Filters | null | undefined, extra: Recor
   };
 }
 
-class DeckCacheService {
+export class DeckCacheService {
   private cache: Map<string, DeckCacheEntry> = new Map();
 
   private generateCacheKey(sessionCode: string, provider: string, filtersHash: string): string {
@@ -63,6 +78,35 @@ class DeckCacheService {
 
   private isExpired(entry: DeckCacheEntry): boolean {
     return Date.now() - entry.createdAt > CACHE_TTL_MS;
+  }
+
+  /** Number of decks held; a test asserts the bound. */
+  get size(): number {
+    return this.cache.size;
+  }
+
+  /**
+   * Drop expired entries, then evict oldest-by-creation until one more fits.
+   * Called before every insert, so the cap holds without a background timer.
+   */
+  private evict(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache) {
+      if (now - entry.createdAt > CACHE_TTL_MS) this.cache.delete(key);
+    }
+
+    while (this.cache.size >= MAX_CACHE_ENTRIES) {
+      let oldestKey: string | null = null;
+      let oldestCreatedAt = Number.POSITIVE_INFINITY;
+      for (const [key, entry] of this.cache) {
+        if (entry.createdAt < oldestCreatedAt) {
+          oldestCreatedAt = entry.createdAt;
+          oldestKey = key;
+        }
+      }
+      if (oldestKey === null) break;
+      this.cache.delete(oldestKey);
+    }
   }
 
   getCachedDeck(
@@ -96,6 +140,8 @@ class DeckCacheService {
   ): void {
     const filtersHash = this.generateFiltersHash(filters);
     const cacheKey = this.generateCacheKey(sessionCode, provider, filtersHash);
+
+    this.evict();
 
     this.cache.set(cacheKey, {
       orderedIds,
