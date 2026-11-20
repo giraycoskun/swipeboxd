@@ -5,7 +5,7 @@ import { SwipeCard, TinderCardHandle } from "./SwipeCard";
 import { useMovieDetail } from "../movie/MovieDetailProvider";
 import { UserAvatarList } from "../session/UserAvatarList";
 import { FilterDrawer } from "./FilterDrawer";
-import { MatchOverlay } from "./MatchOverlay";
+import { MatchTakeover } from "./MatchTakeover";
 import { useHotkeys } from "react-hotkeys-hook";
 import { DeckControls } from "./DeckControls";
 import { DeckHints } from "./DeckHints";
@@ -27,6 +27,7 @@ import {
 import { useRuntimeConfig } from "@/lib/runtime-config";
 import { hasAppliedFilters as deckHasAppliedFilters } from "@/lib/filters";
 import { isSpoilerRisk } from "@/lib/media-kind";
+import { dequeueMatch, enqueueMatch } from "@/lib/match-queue";
 import { useBackgroundStore } from "@/lib/background-store";
 import { ProviderType } from "@/lib/providers/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -71,7 +72,10 @@ export function CardDeck() {
   const [lastSwipe, setLastSwipe] = useState<{ id: string; direction: "left" | "right" } | null>(null);
   const [rewindingId, setRewindingId] = useState<{ id: string; direction: "left" | "right" } | null>(null);
   const [displayDeck, setDisplayDeck] = useState<MediaItem[]>([]);
-  const [matchedItem, setMatchedItem] = useState<MediaItem | null>(null);
+  // A fast group can produce several matches before the first is dismissed; a
+  // single slot used to drop the second one silently.
+  const [matchQueue, setMatchQueue] = useState<MediaItem[]>([]);
+  const currentMatch = matchQueue[0] ?? null;
 
   const { setBackgroundItem } = useBackgroundStore();
 
@@ -209,10 +213,10 @@ export function CardDeck() {
     swipeMutation.mutate({ itemId: id, direction, item }, {
       onSuccess: (data) => {
         if (data.isMatch) {
-          setMatchedItem({
+          setMatchQueue((queue) => enqueueMatch(queue, {
             ...item,
             likedBy: data.likedBy
-          });
+          }));
         } else if (data.matchBlockedByLimit) {
           toast.error("Match not registered", {
             description: "Max number of matches reached",
@@ -410,11 +414,17 @@ export function CardDeck() {
         <DeckHints />
       </div>
 
-      <MatchOverlay
-        item={matchedItem}
-        sessionCode={sessionCode}
-        onClose={() => setMatchedItem(null)}
-      />
+      {currentMatch && (
+        <MatchTakeover
+          item={currentMatch}
+          sessionCode={sessionCode}
+          onContinue={() => setMatchQueue(dequeueMatch)}
+          onOpenDetails={() => {
+            openMovie(currentMatch.Id, { sessionCode });
+            setMatchQueue(dequeueMatch);
+          }}
+        />
+      )}
 
       <FilterDrawer
         open={isFilterOpen}
