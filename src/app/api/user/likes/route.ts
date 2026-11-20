@@ -12,6 +12,7 @@ import { getMediaProvider } from "@/lib/providers/factory";
 import { detailsIdFor, resolveItemSource } from "@/lib/providers/item-source";
 import { handleApiError } from "@/lib/api-utils";
 import { logger } from "@/lib/logger";
+import { attachWatchProviders } from "@/lib/services/watch-providers";
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
@@ -52,6 +53,11 @@ export async function GET(request: NextRequest) {
             const item = await itemProvider.getItemDetails(detailsIdFor(id, providerType), auth, { includeUserState: true });
             if (item) {
                 item.Id = id; // keep the prefixed id so DB rows keep matching
+                // Enriched even though a library row does not *draw* its services: this list also
+                // seeds the detail sheet's cache (same query key, `initialData` is the row and
+                // `refetchOnMount` is off for the app), so the sheet's "Available On" section needs
+                // the providers to be here.
+                await attachWatchProviders(item, auth);
                 itemsMap.set(id, item);
             }
         } catch (error) {

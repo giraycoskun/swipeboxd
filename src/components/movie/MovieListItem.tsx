@@ -54,6 +54,18 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
   const currentMovie = syncedMovie ? { ...movie, ...syncedMovie } : movie;
   // Hybrid decks contain tmdb:-prefixed streaming-only items: no play link, no watchlist
   const isStreamingOnly = isTmdbSourcedId(currentMovie.Id);
+  // A row is EITHER a title you own — Play, no services — OR a streaming-only title, which has no
+  // file to play and shows where it streams instead. Availability for a library title is the detail
+  // sheet's job ("Available On"), so a list row never draws both. The likes payload still carries
+  // the services (it seeds the sheet's cache), which is why the gate is `isStreamingOnly` and not
+  // "does this row know its providers".
+  //
+  // The strip reads the ROW's payload, never the merged item: the item sync that follows a
+  // favourite answers with `WatchProviders` even for a library title, which is what made a logo
+  // appear under the finger and vanish again on the next reload.
+  const listProviders = movie.WatchProviders ?? [];
+  const hasPlayLink = capabilities.requiresServerUrl && !sessionStatus?.isGuest && !isStreamingOnly;
+  const showStrip = capabilities.hasStreamingSettings && isStreamingOnly && listProviders.length > 0;
   const activeProvider = sessionStatus?.provider || runtimeProvider;
   const detailsUrl = getProviderDetailsUrl({
     provider: activeProvider,
@@ -193,14 +205,12 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
             </div>
           )}
 
-          {/* Two groups, never one wrapping row: Play and the service strip share the space on the
-              left, the state icons are pinned right. A single `flex-wrap` row let a strip that
-              arrives late (the item syncs its services when you favourite it) halve the Play
-              button, and with no Play button at all — a TMDB-only title — left the heart sitting
-              against the left edge. */}
+          {/* Two groups, never one wrapping row: the action (Play or the service strip) takes the
+              space on the left, the state icons are pinned right — flush right in every
+              combination, including a TMDB-only row that has no Play button to push them. */}
           <div className="flex items-center gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              {capabilities.requiresServerUrl && !sessionStatus?.isGuest && !isStreamingOnly && <Link href={detailsUrl} onClick={e => e.stopPropagation()} className="min-w-0 flex-1">
+              {hasPlayLink && <Link href={detailsUrl} onClick={e => e.stopPropagation()} className="min-w-0 flex-1">
 
                 <Button
                   size="sm"
@@ -214,12 +224,12 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
                 </Button>
               </Link>
               }
-              {capabilities.hasStreamingSettings && (currentMovie.WatchProviders?.length ?? 0) > 0 && (currentMovie.WatchProviders?.length ?? 0) <= 2 && (
+              {showStrip && (
                 <ProviderStrip
-                  providers={currentMovie.WatchProviders ?? []}
-                  // One or two services sit beside Play at their own width (`shrink-0`): the strip
-                  // does not compete with the button for the row.
-                  className="shrink-0"
+                  providers={listProviders}
+                  // No Play button — a streaming-only row. The services take the width the state
+                  // icons leave and fold whatever does not fit into `+N`.
+                  className="min-w-0 flex-1"
                 />
               )}
             </div>
@@ -244,22 +254,14 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
               {(isLikedByMe || isLiked) && <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                 onClick={handleUnlike}
                 disabled={isUnliking}
               >
-                <Heart weight="fill" className="w-3.5 h-3.5 text-destructive" />
+                <Heart weight="fill" className="w-3.5 h-3.5 text-foreground" />
               </Button>}
             </div>
           </div>
-          {/* Three or more services get a line of their own, below the icons: at that width they
-              would push Play off the row instead of sitting beside it. */}
-          {capabilities.hasStreamingSettings && (currentMovie.WatchProviders?.length ?? 0) > 2 && (
-            <ProviderStrip
-              providers={currentMovie.WatchProviders ?? []}
-              className="w-full"
-            />
-          )}
         </div>
       </div>
     </div>

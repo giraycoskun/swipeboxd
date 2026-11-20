@@ -18,9 +18,10 @@ Components stay local, so patches are ordinary edits and upstream deltas stay vi
   the deck/likes tabs, a liked heart, a rating star, a saved bookmark. The mark glyph is Phosphor
   `CardsThree` (`mark.source: "phosphor"`, the `fill` silhouette) because the deck tab uses the same
   glyph: logo, favicon, tab and the OG card are one icon.
-- **A state icon is filled *and* coloured.** A liked heart is `weight="fill"` in `text-destructive`
-  in the detail sheet and in a likes row; a rating star is `weight="fill"`. An outline icon never
-  means "this is already true".
+- **A state icon is filled, in ink.** A liked heart is `weight="fill"` in `text-foreground` in the
+  detail sheet and in a likes row; a rating star is `weight="fill"`. Red is not a state colour here
+  (`text-destructive` was tried and rejected: it reads as an alarm against neutral chrome, and the
+  only colour on screen should be the artwork). An outline icon never means "this is already true".
 - **A title is not a machine value.** Media names are `font-sans` even where the document's heading
   rule is mono.
 - **A scroll edge fades; it is not shadowed.** `scroll-fade` on the element that owns
@@ -29,6 +30,11 @@ Components stay local, so patches are ordinary edits and upstream deltas stay vi
 - **A series past five seasons opens folded.** Three rows are legible, the fourth is half-visible
   under the canon `scroll-fade`, and a "See all N seasons" toggle finishes the list; opening a
   season unfolds it, because an episode list inside a 155px window is unusable.
+- **A third-party atom is neutralised in `globals.css`, not forked.** Sonner ships a hard `4px`
+  radius on its toast action button, the system font stack on the toaster and its own shadow; the
+  toaster is portalled to `<body>` and its stylesheet lands after ours, so the overrides use the
+  `.toaster` class to win. If a second Messer app ships sonner this belongs in messer-ui as a
+  `.m-toast` recipe — the Portal has the same rounded Undo button today.
 - **Mono is for machine values, never for chips.** Season indices, counts, runtimes, codes and
   versions stay mono; badges, buttons, prose and headings-sized statistics do not. A badge is
   semibold uppercase Golos at 10px — there is one `meta` badge variant so no site hand-rolls it.
