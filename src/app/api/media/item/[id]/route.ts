@@ -11,6 +11,7 @@ import { ProviderType } from "@/lib/providers/types";
 import { detailsIdFor, resolveItemSource, isTmdbSourcedId, getTmdbProviderId } from "@/lib/providers/item-source";
 import { getEffectiveCapabilities } from "@/lib/runtime-config";
 import { logger } from "@/lib/logger";
+import { attachWatchProviders } from "@/lib/services/watch-providers";
 import { handleApiError } from "@/lib/api-utils";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -49,16 +50,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       item.InLibrary = false;
     } else if (hybridCapable) {
       item.InLibrary = true;
-      // Enrich library items with streaming availability (one TMDB call, non-fatal)
-      const tmdbId = getTmdbProviderId(item);
-      if (tmdbId) {
-        try {
-          const tmdbDetails = await getMediaProvider(ProviderType.TMDB).getItemDetails(tmdbId, auth);
-          item.WatchProviders = tmdbDetails.WatchProviders;
-        } catch (error) {
-          logger.debug("Failed to enrich library item with TMDB watch providers:", error);
-        }
-      }
+      // One TMDB call, non-fatal — shared with the likes list so both routes answer the same way.
+      await attachWatchProviders(item, auth);
     }
 
     const itemLikes = await db.select().from(likes).where(and(

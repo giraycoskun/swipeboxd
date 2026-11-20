@@ -12,6 +12,7 @@ import { getMediaProvider } from "@/lib/providers/factory";
 import { detailsIdFor, resolveItemSource } from "@/lib/providers/item-source";
 import { handleApiError } from "@/lib/api-utils";
 import { logger } from "@/lib/logger";
+import { attachWatchProviders } from "@/lib/services/watch-providers";
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
@@ -52,6 +53,10 @@ export async function GET(request: NextRequest) {
             const item = await itemProvider.getItemDetails(detailsIdFor(id, providerType), auth, { includeUserState: true });
             if (item) {
                 item.Id = id; // keep the prefixed id so DB rows keep matching
+                // Same enrichment the item endpoint does: a library row draws its service strip
+                // from the list payload, so the lookup has to happen here or the strip would only
+                // appear once the row was interacted with.
+                await attachWatchProviders(item, auth);
                 itemsMap.set(id, item);
             }
         } catch (error) {
