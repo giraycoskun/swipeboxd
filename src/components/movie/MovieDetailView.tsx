@@ -193,14 +193,14 @@ export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionC
                     size="lg"
                     aria-label="Unlike"
                     title="Unlike"
-                    className="shrink-0 aspect-square p-0 text-destructive border-destructive/40 hover:bg-destructive/10"
+                    className="shrink-0 aspect-square p-0"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleUnlike();
                     }}
                     disabled={isUnliking}
                   >
-                    <Heart weight="fill" className="w-5 h-5 text-destructive" />
+                    <Heart weight="fill" className="w-5 h-5 text-foreground" />
                   </Button>}
                 </div>
 

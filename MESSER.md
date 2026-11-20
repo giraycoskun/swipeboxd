@@ -18,9 +18,10 @@ Components stay local, so patches are ordinary edits and upstream deltas stay vi
   the deck/likes tabs, a liked heart, a rating star, a saved bookmark. The mark glyph is Phosphor
   `CardsThree` (`mark.source: "phosphor"`, the `fill` silhouette) because the deck tab uses the same
   glyph: logo, favicon, tab and the OG card are one icon.
-- **A state icon is filled *and* coloured.** A liked heart is `weight="fill"` in `text-destructive`
-  in the detail sheet and in a likes row; a rating star is `weight="fill"`. An outline icon never
-  means "this is already true".
+- **A state icon is filled, in ink.** A liked heart is `weight="fill"` in `text-foreground` in the
+  detail sheet and in a likes row; a rating star is `weight="fill"`. Red is not a state colour here
+  (`text-destructive` was tried and rejected: it reads as an alarm against neutral chrome, and the
+  only colour on screen should be the artwork). An outline icon never means "this is already true".
 - **A title is not a machine value.** Media names are `font-sans` even where the document's heading
   rule is mono.
 - **A scroll edge fades; it is not shadowed.** `scroll-fade` on the element that owns

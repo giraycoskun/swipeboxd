@@ -258,11 +258,11 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
               {(isLikedByMe || isLiked) && <Button
                 size="sm"
                 variant="ghost"
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                 onClick={handleUnlike}
                 disabled={isUnliking}
               >
-                <Heart weight="fill" className="w-3.5 h-3.5 text-destructive" />
+                <Heart weight="fill" className="w-3.5 h-3.5 text-foreground" />
               </Button>}
             </div>
           </div>
