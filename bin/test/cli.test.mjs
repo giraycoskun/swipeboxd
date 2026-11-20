@@ -167,3 +167,54 @@ test("--version reports the build the image set, not a constant", async () => {
   assert.equal(pinned.code, 0);
   assert.equal(pinned.stdout.trim(), "messer-swipe 9.9.9 (api 1)");
 });
+
+test("media search encodes the query and prints one line per match", async () => {
+  await withServer(
+    (req, res) => {
+      assert.equal(req.url, "/api/v1/media?query=the%20big%20lebowski");
+      res.end(JSON.stringify({ ok: true, api: 1, data: { query: "the big lebowski", items: [
+        { id: "550", name: "The Big Lebowski", year: 1998, kind: "movie", rating: 8.1 },
+      ] }, meta: { version: "2.2.2", durationMs: 3 } }));
+    },
+    async (url) => {
+      const result = await run(["media", "search", "the", "big", "lebowski", "--url", url, "--token", TOKEN, "--human"]);
+      assert.equal(result.code, 0, result.stderr);
+      assert.match(result.stdout, /The Big Lebowski \(1998\)\s+movie\s+550/);
+    }
+  );
+});
+
+test("media get needs an id and exits 2 without calling the network", async () => {
+  const result = await run(["media", "get"]);
+  assert.equal(result.code, 2);
+  assert.match(JSON.parse(result.stderr).error.message, /needs an id/);
+});
+
+test("a 404 answers exit 4", async () => {
+  await withServer(
+    (_req, res) => {
+      res.statusCode = 404;
+      res.end(JSON.stringify({ ok: false, api: 1, error: { code: "NOT_FOUND", message: "no item" } }));
+    },
+    async (url) => {
+      const result = await run(["media", "get", "nope", "--url", url, "--token", TOKEN]);
+      assert.equal(result.code, 4);
+    }
+  );
+});
+
+test("logs passes level/since/limit through", async () => {
+  await withServer(
+    (req, res) => {
+      assert.equal(req.url, "/api/v1/logs?level=warn&since=30&limit=10");
+      res.end(JSON.stringify({ ok: true, api: 1, data: { sinceMinutes: 30, level: "warn", entries: [
+        { at: "2026-11-20T15:00:00.000Z", level: "warn", message: "image fetch timed out" },
+      ] }, meta: { version: "2.2.2", durationMs: 1 } }));
+    },
+    async (url) => {
+      const result = await run(["logs", "--level", "warn", "--since", "30", "--limit", "10", "--url", url, "--token", TOKEN, "--human"]);
+      assert.equal(result.code, 0, result.stderr);
+      assert.match(result.stdout, /WARN\s+image fetch timed out/);
+    }
+  );
+});
