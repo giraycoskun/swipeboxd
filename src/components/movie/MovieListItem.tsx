@@ -54,6 +54,14 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
   const currentMovie = syncedMovie ? { ...movie, ...syncedMovie } : movie;
   // Hybrid decks contain tmdb:-prefixed streaming-only items: no play link, no watchlist
   const isStreamingOnly = isTmdbSourcedId(currentMovie.Id);
+  // The ROW's payload decides the service strip, not the merged item. The likes route enriches
+  // library rows with their TMDB services before it answers, so a strip is there from the first
+  // paint; the item sync that follows a favourite or watchlist write then has nothing to add. It
+  // used to be the only source (`currentMovie`), which made a logo pop in mid-interaction and
+  // vanish again on the next reload.
+  const listProviders = movie.WatchProviders ?? [];
+  const hasPlayLink = capabilities.requiresServerUrl && !sessionStatus?.isGuest && !isStreamingOnly;
+  const showStrip = capabilities.hasStreamingSettings && listProviders.length > 0;
   const activeProvider = sessionStatus?.provider || runtimeProvider;
   const detailsUrl = getProviderDetailsUrl({
     provider: activeProvider,
@@ -194,13 +202,11 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
           )}
 
           {/* Two groups, never one wrapping row: Play and the service strip share the space on the
-              left, the state icons are pinned right. A single `flex-wrap` row let a strip that
-              arrives late (the item syncs its services when you favourite it) halve the Play
-              button, and with no Play button at all — a TMDB-only title — left the heart sitting
-              against the left edge. */}
+              left, the state icons are pinned right, so the icons are flush right in every
+              combination — including a TMDB-only row, which has no Play button to push them. */}
           <div className="flex items-center gap-2">
             <div className="flex min-w-0 flex-1 items-center gap-2">
-              {capabilities.requiresServerUrl && !sessionStatus?.isGuest && !isStreamingOnly && <Link href={detailsUrl} onClick={e => e.stopPropagation()} className="min-w-0 flex-1">
+              {hasPlayLink && <Link href={detailsUrl} onClick={e => e.stopPropagation()} className="min-w-0 flex-1">
 
                 <Button
                   size="sm"
@@ -214,12 +220,20 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
                 </Button>
               </Link>
               }
-              {capabilities.hasStreamingSettings && (currentMovie.WatchProviders?.length ?? 0) > 0 && (currentMovie.WatchProviders?.length ?? 0) <= 2 && (
+              {showStrip && listProviders.length <= 2 && (
                 <ProviderStrip
-                  providers={currentMovie.WatchProviders ?? []}
+                  providers={listProviders}
                   // One or two services sit beside Play at their own width (`shrink-0`): the strip
                   // does not compete with the button for the row.
                   className="shrink-0"
+                />
+              )}
+              {showStrip && !hasPlayLink && (
+                <ProviderStrip
+                  providers={listProviders}
+                  // No Play button — a TMDB row. The services and the state icons share this row:
+                  // the strip takes the width the icons leave and folds the rest into `+N`.
+                  className="min-w-0 flex-1"
                 />
               )}
             </div>
@@ -252,11 +266,11 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
               </Button>}
             </div>
           </div>
-          {/* Three or more services get a line of their own, below the icons: at that width they
-              would push Play off the row instead of sitting beside it. */}
-          {capabilities.hasStreamingSettings && (currentMovie.WatchProviders?.length ?? 0) > 2 && (
+          {/* Beside a Play button, three or more services get a line of their own below: at that
+              width they would push Play off the row instead of sitting beside it. */}
+          {showStrip && hasPlayLink && listProviders.length > 2 && (
             <ProviderStrip
-              providers={currentMovie.WatchProviders ?? []}
+              providers={listProviders}
               className="w-full"
             />
           )}
