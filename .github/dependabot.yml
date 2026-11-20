@@ -19,7 +19,12 @@ updates:
       - "webpack"               # Stable major version
       - "react"                 # Framework core, test before updating
       - "react-dom"             # Framework core, test before updating
-      - "next"                  # Framework core, test before updating
+      # `next` is deliberately NOT ignored wholesale: it carries security patches
+      # inside a major (16.1.6 -> 16.4.6 closed two criticals) and the ignore list
+      # was why the shipped image sat on a vulnerable version. Majors still wait
+      # for a human.
+      - dependency-name: "next"
+        versions: [">=17"]
       - "drizzle-kit"           # Database tool, careful updates
     target-branch: "develop"
     versioning-strategy: increase
