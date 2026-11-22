@@ -35,7 +35,6 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { AboutSettings } from "./settings/AboutSettings";
 import { AccountSettings } from "./settings/AccountSettings";
 import { AdminSettings } from "./settings/AdminSettings";
-import { AgentSettings } from "./settings/AgentSettings";
 import { GeneralSettings } from "./settings/GeneralSettings";
 import { StreamingSettings } from "./settings/StreamingSettings";
 import { DangerZone } from "./settings/DangerZone";
@@ -110,7 +109,6 @@ export function SettingsSidebar() {
                             <GeneralSettings />
                             {capabilities.hasStreamingSettings && <StreamingSettings />}
                             {capabilities.isAdminPanel && <AdminSettings />}
-                            {capabilities.isAdminPanel && <AgentSettings />}
                             <AboutSettings onShowUserGuide={() => {
                                 setShowUserGuide(true);
                                 setOpen(false);

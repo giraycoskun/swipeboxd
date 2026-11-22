@@ -19,7 +19,7 @@ export interface AgentContext {
 export type AuthResult = { ok: true; ctx: AgentContext } | { ok: false; response: Response };
 
 const HINT =
-  "Create a token in Settings → Agents, or run `messer-swipe` inside the container — it uses the local token.";
+  "Run `messer-swipe token create <name>` inside the container, or run `messer-swipe` there — it uses the local token.";
 
 export async function authenticate(request: NextRequest, required: AgentScope): Promise<AuthResult> {
   const header = (request.headers.get("authorization") ?? "").trim();
@@ -47,7 +47,7 @@ export async function authenticate(request: NextRequest, required: AgentScope): 
       response: apiError(
         "FORBIDDEN",
         `This token is scoped "${scope}"; the request needs "${required}".`,
-        { hint: "Create a token with the wider scope in Settings → Agents." }
+        { hint: "Create a token with the wider scope: messer-swipe token create <name> --scope admin" }
       ),
     };
   }
