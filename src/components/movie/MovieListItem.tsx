@@ -21,7 +21,7 @@ import { useRuntimeConfig } from "@/lib/runtime-config";
 import { useMovieActions } from "@/hooks/use-movie-actions";
 import { useQueryClient } from "@tanstack/react-query";
 import { movieDetailQueryOptions } from "@/hooks/api/use-movie-detail";
-import { getProviderDetailsUrl } from "@/lib/provider-links";
+import { detailsServerUrl, getProviderDetailsUrl } from "@/lib/provider-links";
 import { isTmdbSourcedId } from "@/lib/providers/item-source";
 import { useSession } from "@/hooks/api";
 import type { ReactNode } from "react";
@@ -36,7 +36,7 @@ interface MovieListItemProps {
 
 
 export function MovieListItem({ movie, onClick, variant = "full", isLiked }: MovieListItemProps) {
-  const { capabilities, serverPublicUrl, provider: runtimeProvider } = useRuntimeConfig();
+  const { capabilities, serverPublicUrl: runtimeServerUrl, provider: runtimeProvider } = useRuntimeConfig();
 
   const { data: sessionStatus } = useSession();
 
@@ -67,6 +67,8 @@ export function MovieListItem({ movie, onClick, variant = "full", isLiked }: Mov
   const hasPlayLink = capabilities.requiresServerUrl && !sessionStatus?.isGuest && !isStreamingOnly;
   const showStrip = capabilities.hasStreamingSettings && isStreamingOnly && listProviders.length > 0;
   const activeProvider = sessionStatus?.provider || runtimeProvider;
+  // Same order as the detail sheet: the session's server, then the instance URL (#99).
+  const serverPublicUrl = detailsServerUrl(sessionStatus?.serverUrl, runtimeServerUrl);
   const detailsUrl = getProviderDetailsUrl({
     provider: activeProvider,
     serverPublicUrl,

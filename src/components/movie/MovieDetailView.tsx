@@ -26,7 +26,7 @@ import { useMovieActions } from "@/hooks/use-movie-actions";
 import { QUERY_KEYS } from "@/hooks/api/query-keys";
 import { TMDB_MOVIE_BASE_URL } from "@/lib/constants";
 import { getLanguageLabel } from "@/lib/language";
-import { getProviderDetailsUrl } from "@/lib/provider-links";
+import { detailsServerUrl, getProviderDetailsUrl } from "@/lib/provider-links";
 import { ProviderType } from "@/lib/providers/types";
 import { isTmdbSourcedId, resolveItemSource } from "@/lib/providers/item-source";
 import { SeriesDetailSection } from "@/components/shows/SeriesDetailSection";
@@ -92,7 +92,9 @@ export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionC
   const { data: sessionStatus } = useSession({ enabled: !!movieId });
   const capabilities = sessionStatus?.capabilities || runtimeCapabilities;
   const activeProvider = sessionStatus?.provider || runtimeProvider;
-  const serverPublicUrl = runtimeServerUrl;
+  // The member's own server wins over the instance URL (#99): with two servers configured,
+  // the runtime URL is the one in compose, not the one this session is signed into.
+  const serverPublicUrl = detailsServerUrl(sessionStatus?.serverUrl, runtimeServerUrl);
   const detailsUrl = getProviderDetailsUrl({
     provider: activeProvider,
     serverPublicUrl,
