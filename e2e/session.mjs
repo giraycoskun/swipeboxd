@@ -216,6 +216,29 @@ const main = async () => {
   check("the takeover covers the viewport", panel?.covers === true);
   check("its content stays in the 448 px column", (panel?.contentWidth ?? 999) <= 448, `${panel?.contentWidth}px`);
   check("it names the other member and the title", /Ada/.test(panel?.text || "") && /Session Fixture 1/.test(panel?.text || ""), panel?.text?.slice(0, 100));
+
+  // Widening the same live takeover: it is a portal for a reason. Inside the tab panel its
+  // `fixed inset-0` inherited that panel's animated transform and shrank to the 448 px deck
+  // column — invisible at 390 px, where the column *is* the viewport. (2.4.1)
+  await bo.setViewportSize({ width: 1280, height: 720 });
+  await bo.waitForTimeout(600);
+  const wide = await bo.evaluate(() => {
+    const dialog = document.querySelector("[data-match-takeover]");
+    if (!dialog) return { missing: true };
+    const r = dialog.getBoundingClientRect();
+    const button = Array.from(dialog.querySelectorAll("button")).find((b) => /continue/i.test(b.textContent || ""));
+    const br = button?.getBoundingClientRect();
+    return {
+      w: Math.round(r.width), h: Math.round(r.height),
+      vw: window.innerWidth, vh: window.innerHeight,
+      buttonBottom: br ? Math.round(br.bottom) : null,
+    };
+  });
+  check("the takeover covers a desktop window, not the deck column", wide.w === wide.vw && wide.h === wide.vh, `${wide.w}x${wide.h} in ${wide.vw}x${wide.vh}`);
+  check("Continue is inside the desktop window", !!wide.buttonBottom && wide.buttonBottom <= wide.vh, `${wide.buttonBottom} vs ${wide.vh}`);
+  await bo.setViewportSize({ width: 390, height: 844 });
+  await bo.waitForTimeout(500);
+
   check("the match is one row in the database", matchRows(code) === 1, `rows=${matchRows(code)}`);
   await bo.screenshot({ path: path.join(SHOTS, "match-takeover-phone.png") });
   await bo.setViewportSize({ width: 1440, height: 900 });
