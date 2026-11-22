@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/api-client";
 import { getRuntimeConfig } from "@/lib/runtime-config";
 import { startHereHeading, type StartHereResult } from "@/lib/start-here";
 import { useSession } from "@/hooks/api";
+import { useBlurData } from "@/hooks/use-blur-data";
 
 interface MatchTakeoverProps {
   item: MediaItem;
@@ -61,6 +62,9 @@ export function MatchTakeover({ item, sessionCode, onContinue, onOpenDetails }: 
   });
 
   const { data: session } = useSession();
+  // The backdrop's source: the deck's own background recipe, pointed at the title being celebrated
+  // rather than whatever card is on top (the deck has already advanced by the time a match lands).
+  const backdrop = useBlurData(item.Id, item.BlurDataURL);
   const likedBy = item.likedBy ?? [];
   const otherUsers = session?.userId
     ? likedBy.filter((user) => user.userId !== session.userId)
@@ -103,8 +107,21 @@ export function MatchTakeover({ item, sessionCode, onContinue, onOpenDetails }: 
       aria-modal="true"
       aria-label="It's a match"
       data-match-takeover
-      className="fixed inset-0 z-50 flex overflow-y-auto bg-background scroll-fade"
+      className="fixed inset-0 z-50 flex overflow-y-auto scroll-fade"
     >
+      {/* The deck's own background recipe — blurred, saturated, colour-matched artwork behind a
+          gradient — sourced from the title being celebrated instead of whatever card is on top,
+          since the deck has already moved on by the time the match lands. */}
+      <div aria-hidden data-match-backdrop className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-background">
+        {backdrop && (
+          <div
+            className="absolute inset-0 scale-110 bg-cover bg-center blur-2xl saturate-[1.8] opacity-60 transform-gpu"
+            style={{ backgroundImage: `url("${backdrop}")` }}
+          />
+        )}
+        <div className="absolute inset-0 bg-linear-to-b from-background/30 via-background/55 to-background/85" />
+      </div>
+
       <motion.div
         initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
         animate={reduced ? { opacity: 1 } : { opacity: 1, scale: 1 }}
@@ -118,12 +135,10 @@ export function MatchTakeover({ item, sessionCode, onContinue, onOpenDetails }: 
           initial={{ scale: 0 }}
           animate={reduced ? { scale: 1.2 } : { scale: [1.2, 1.35, 1.2] }}
           transition={reduced ? { duration: 0 } : { repeat: Infinity, duration: 2.4, ease: "easeInOut" }}
-          className="pointer-events-none absolute -top-16 text-foreground opacity-[0.06]"
+          className="pointer-events-none absolute -top-16 text-foreground opacity-[0.08]"
         >
           <Heart weight="fill" className="size-72" />
         </motion.div>
-
-        <Heart weight="fill" className="size-12 text-foreground" aria-hidden />
 
         <h1 className="font-sans text-4xl font-black italic uppercase tracking-tighter text-foreground sm:text-5xl">
           It&apos;s a match!
@@ -139,7 +154,7 @@ export function MatchTakeover({ item, sessionCode, onContinue, onOpenDetails }: 
         <button
           type="button"
           onClick={onOpenDetails}
-          className="aspect-[2/3] h-[min(42svh,384px)] shrink-0 overflow-hidden rounded-2xl border-2 border-border/70 bg-muted shadow-2xl transition-transform active:scale-[0.98]"
+          className="aspect-[2/3] h-[min(42svh,384px)] shrink-0 cursor-pointer overflow-hidden rounded-2xl border-2 border-border/70 bg-muted shadow-lg transition-all duration-300 ease-out focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:hover:scale-[1.05] sm:hover:border-foreground/40 sm:hover:ring-4 sm:hover:ring-foreground/25 active:scale-[0.98]"
           aria-label={`Open details for ${item.Name}`}
         >
           <OptimizedImage
