@@ -21,6 +21,8 @@ swipes and matches.
   <img src="docs/brand/screen-light.png" alt="The deck: one card with its poster, tags and rating, and the pass, like, undo and filter controls" width="1200">
 </picture>
 
+<img src="docs/brand/demo.gif" alt="The deck on a phone: one card liked, the next one dealt" width="390">
+
 ## Run
 
 ```bash
