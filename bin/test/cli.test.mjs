@@ -218,3 +218,177 @@ test("logs passes level/since/limit through", async () => {
     }
   );
 });
+
+const tokensBody = {
+  ok: true,
+  api: 1,
+  data: {
+    tokens: [
+      {
+        id: "t1",
+        name: "local",
+        prefix: "AbCd1234",
+        userId: "u1",
+        userName: "Jakob",
+        provider: "jellyfin",
+        scope: "admin",
+        isLocal: true,
+        createdAt: "2026-11-20T00:00:00.000Z",
+        lastUsedAt: null,
+        revokedAt: null,
+      },
+      {
+        id: "t2",
+        name: "laptop",
+        prefix: "ZzYy9876",
+        userId: "u1",
+        userName: "Jakob",
+        provider: "jellyfin",
+        scope: "read",
+        isLocal: false,
+        createdAt: "2026-11-21T00:00:00.000Z",
+        lastUsedAt: "2026-11-22T09:00:00.000Z",
+        revokedAt: null,
+      },
+    ],
+  },
+  meta: { version: "2.2.0", durationMs: 2 },
+};
+
+function envelope(data) {
+  return { ok: true, api: 1, data, meta: { version: "2.2.0", durationMs: 2 } };
+}
+
+/** A handler that records what arrived, so a write verb can be asserted, not inferred. */
+function recording(handler) {
+  const seen = { method: null, url: null, body: null, contentType: null };
+  return {
+    seen,
+    handler: (req, res) => {
+      seen.method = req.method;
+      seen.url = req.url;
+      seen.contentType = req.headers["content-type"] ?? null;
+      let raw = "";
+      req.on("data", (chunk) => { raw += chunk; });
+      req.on("end", () => {
+        seen.body = raw ? JSON.parse(raw) : null;
+        handler(req, res);
+      });
+    },
+  };
+}
+
+test("token list prints one line per token, and flags the local one", async () => {
+  await withServer(
+    (req, res) => {
+      assert.equal(req.url, "/api/v1/tokens");
+      assert.equal(req.headers.authorization, `Bearer ${TOKEN}`);
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify(tokensBody));
+    },
+    async (url) => {
+      const result = await run(["token", "list", "--url", url, "--token", TOKEN, "--human"]);
+      assert.equal(result.code, 0, result.stderr);
+      const lines = result.stdout.trim().split("\n");
+      assert.equal(lines.length, 2);
+      assert.match(lines[0], /AbCd1234/);
+      assert.match(lines[0], /local/);
+      assert.match(lines[1], /ZzYy9876\s+read/);
+      assert.match(lines[1], /2026-11-22/);
+    }
+  );
+});
+
+test("token create posts the name and the scope", async () => {
+  const rec = recording((_req, res) => {
+    res.setHeader("content-type", "application/json");
+    res.end(
+      JSON.stringify(
+        envelope({
+          token: `msw_ZzYy9876_${"y".repeat(43)}`,
+          record: { id: "t3", name: "laptop", scope: "write", prefix: "ZzYy9876", isLocal: false },
+        })
+      )
+    );
+  });
+
+  await withServer(rec.handler, async (url) => {
+    const result = await run([
+      "token", "create", "laptop", "--scope", "write", "--url", url, "--token", TOKEN, "--human",
+    ]);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(rec.seen.method, "POST");
+    assert.equal(rec.seen.url, "/api/v1/tokens");
+    assert.equal(rec.seen.contentType, "application/json");
+    assert.deepEqual(rec.seen.body, { name: "laptop", scope: "write" });
+    // The plaintext is the whole point of the command: it must reach stdout, once.
+    assert.equal(result.stdout.match(/msw_ZzYy9876_/g).length, 1);
+  });
+});
+
+test("token create defaults to the read scope", async () => {
+  const rec = recording((_req, res) => {
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify(envelope({ token: `msw_AaAa1111_${"z".repeat(43)}`, record: { name: "ci", scope: "read", prefix: "AaAa1111" } })));
+  });
+
+  await withServer(rec.handler, async (url) => {
+    const result = await run(["token", "create", "ci", "--url", url, "--token", TOKEN]);
+    assert.equal(result.code, 0, result.stderr);
+    assert.deepEqual(rec.seen.body, { name: "ci", scope: "read" });
+    const body = JSON.parse(result.stdout);
+    assert.equal(body.data.record.scope, "read");
+  });
+});
+
+test("token create without a name exits 2 before the network", async () => {
+  const result = await run(["token", "create", "--url", "http://127.0.0.1:1", "--token", TOKEN]);
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /needs a name/i);
+});
+
+test("token create rejects an unknown scope", async () => {
+  const result = await run(["token", "create", "laptop", "--scope", "root", "--token", TOKEN]);
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /scope must be one of/);
+});
+
+test("token revoke deletes by prefix", async () => {
+  const rec = recording((_req, res) => {
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify(envelope({ revoked: "t2", prefix: "ZzYy9876", name: "laptop", scope: "read" })));
+  });
+
+  await withServer(rec.handler, async (url) => {
+    const result = await run(["token", "revoke", "ZzYy9876", "--url", url, "--token", TOKEN, "--human"]);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(rec.seen.method, "DELETE");
+    assert.equal(rec.seen.url, "/api/v1/tokens/ZzYy9876");
+    assert.match(result.stdout, /revoked ZzYy9876/);
+  });
+});
+
+test("a token scoped too narrowly exits 3 with the hint", async () => {
+  await withServer(
+    (_req, res) => {
+      res.statusCode = 403;
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify({
+          ok: false,
+          api: 1,
+          error: {
+            code: "FORBIDDEN",
+            message: 'This token is scoped "read"; the request needs "admin".',
+            hint: "Create a token with the wider scope: messer-swipe token create <name> --scope admin",
+          },
+        })
+      );
+    },
+    async (url) => {
+      const result = await run(["token", "create", "laptop", "--url", url, "--token", TOKEN]);
+      assert.equal(result.code, 3);
+      assert.match(result.stderr, /--scope admin/);
+    }
+  );
+});

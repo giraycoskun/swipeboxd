@@ -39,8 +39,16 @@ MESSER_SWIPE_TOKEN=msw_… \
   node /path/to/bin/messer-swipe.mjs status
 ```
 
-Tokens are created in **Settings → Agents** (administrators only). The plaintext is
-shown once. Scopes:
+Tokens are created from the container CLI — there is no UI for it, because the person
+setting up an instance is already at a shell. The plaintext is shown once:
+
+```bash
+docker exec messer-swipe messer-swipe token list
+docker exec messer-swipe messer-swipe token create laptop --scope read
+docker exec messer-swipe messer-swipe token revoke <prefix-or-id>
+```
+
+Scopes:
 
 | Scope | May |
 |---|---|
@@ -60,7 +68,7 @@ cookie, and prefer `read` unless the agent genuinely needs to write.
 The local token is minted for the administrator and carries that administrator's
 provider credential (encrypted with the instance's auth secret) so that provider-backed
 answers — a deck preview, a library list — work without a browser. If you would rather
-not store that, revoke the local token in Settings → Agents; the container will not
+not store that, revoke the local token (`messer-swipe token revoke <prefix>`); the container will not
 mint another until an administrator logs in again, and the provider-backed commands
 will answer `PROVIDER_AUTH_REQUIRED`.
 

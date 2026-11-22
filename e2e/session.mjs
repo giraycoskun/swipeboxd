@@ -50,8 +50,20 @@ const movie = (n) => ({
   ProductionYear: 2010 + n,
   CommunityRating: 7.1,
   Overview: `Fixture ${n}.`,
+  // A blur stand-in, so the takeover's colour-matched backdrop has something to draw without
+  // reaching for the blur endpoint (a real item carries this from the provider).
+  BlurDataURL:
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='12'><rect width='8' height='12' fill='%23b3231f'/></svg>",
   UserData: { IsFavorite: false, Played: false },
 });
+
+// Stand-ins for the artwork endpoints: a red wash to blur, and the smallest possible PNG.
+const BLUR =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc4JyBoZWlnaHQ9JzEyJz48cmVjdCB3aWR0aD0nOCcgaGVpZ2h0PScxMicgZmlsbD0nI2IzMjMxZicvPjxjaXJjbGUgY3g9JzQnIGN5PSczJyByPScyJyBmaWxsPScjZjBjMzZiJy8+PC9zdmc+";
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 const results = [];
 const check = (name, ok, detail) => {
@@ -75,6 +87,15 @@ const fixtures = async (page, items) => {
     r.fulfill({ contentType: "application/json", body: JSON.stringify(items[0]) }));
   await page.route("**/api/media/start-here**", (r) =>
     r.fulfill({ contentType: "application/json", body: JSON.stringify({ startHere: { action: "start", label: "Start S1E1" }, hostOnly: false }) }));
+  // The takeover's backdrop asks the blur endpoint for the celebrated title's artwork — the same
+  // endpoint the deck's own background uses. A match payload carries no BlurDataURL, so this is
+  // the live path, not a shortcut taken by the fixture.
+  await page.route("**/api/media/image/**", (r) => {
+    if (r.request().url().includes("/blur")) {
+      return r.fulfill({ contentType: "application/json", body: JSON.stringify({ blurDataURL: BLUR }) });
+    }
+    return r.fulfill({ contentType: "image/png", body: PNG });
+  });
 };
 
 const waitDeck = async (page, timeout = 45000) => {
@@ -236,6 +257,39 @@ const main = async () => {
   });
   check("the takeover covers a desktop window, not the deck column", wide.w === wide.vw && wide.h === wide.vh, `${wide.w}x${wide.h} in ${wide.vw}x${wide.vh}`);
   check("Continue is inside the desktop window", !!wide.buttonBottom && wide.buttonBottom <= wide.vh, `${wide.buttonBottom} vs ${wide.vh}`);
+
+  // The backdrop is the deck's own recipe (blurred, saturated artwork under a gradient), sourced
+  // from the title being celebrated; and on a desktop the poster is a pointer that grows on hover.
+  const look = await bo.evaluate(() => {
+    const dialog = document.querySelector("[data-match-takeover]");
+    const layer = dialog?.querySelector("[data-match-backdrop]");
+    const paint = layer?.firstElementChild;
+    const column = layer?.nextElementSibling;
+    const leadsWith = column
+      ? Array.from(column.children).slice(0, 2).map((el) => (el.getAttribute("aria-hidden") ? "decorative" : el.tagName)).join(",")
+      : "none";
+    return {
+      hasBackdrop: !!layer,
+      painted: !!paint && getComputedStyle(paint).backgroundImage.includes("data:image"),
+      leadsWith,
+    };
+  });
+  check("the takeover paints the deck's blurred artwork behind it", look.hasBackdrop && look.painted, JSON.stringify(look));
+  // The column opens with the decorative (aria-hidden) heart, then the headline: no second,
+  // foreground heart above the title.
+  check("the column starts with the decorative heart, then the headline", look.leadsWith === "decorative,H1", look.leadsWith);
+
+  const poster = bo.locator('[data-match-takeover] [aria-label^="Open details"]');
+  const beforeHover = await poster.boundingBox();
+  await poster.hover();
+  await bo.waitForTimeout(500);
+  const afterHover = await poster.boundingBox();
+  const hoverStyle = await poster.evaluate((el) => ({ cursor: getComputedStyle(el).cursor, shadow: getComputedStyle(el).boxShadow }));
+  check(
+    "the poster grows on hover, with a pointer and a glow",
+    !!beforeHover && !!afterHover && afterHover.width > beforeHover.width + 2 && hoverStyle.cursor === "pointer" && hoverStyle.shadow !== "none",
+    `${Math.round(beforeHover?.width ?? 0)} → ${Math.round(afterHover?.width ?? 0)} · ${hoverStyle.cursor} · shadow ${hoverStyle.shadow === "none" ? "none" : "present"}`,
+  );
   await bo.setViewportSize({ width: 390, height: 844 });
   await bo.waitForTimeout(500);
 
