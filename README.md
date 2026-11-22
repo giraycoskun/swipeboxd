@@ -70,6 +70,7 @@ The variables that matter most:
 | `APP_PUBLIC_URL` | `swipe.messer.wtf` | canonical host; set it to yours |
 | `AUTH_SECRET` | generated | session and guest-lending keys, ≥ 32 chars |
 | `USE_SECURE_COOKIES` | `false` | `true` behind HTTPS |
+| `HIDE_PASSWORD_LOGIN` | `false` | hides the username/password form on a Jellyfin install that has Quick Connect — for SSO setups. Ignored on Plex, Emby and TMDB, which would otherwise have no way in |
 | `MAX_IMAGE_WIDTH` | `960` | largest poster the client asks for |
 
 The full matrix — including the image queue, security headers and admin usernames — is in

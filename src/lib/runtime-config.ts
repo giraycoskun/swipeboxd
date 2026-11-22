@@ -22,6 +22,8 @@ export interface RuntimeConfig {
   useStaticFilters: boolean;
   /** Largest poster width a client may ask for (issue #94). */
   maxImageWidth: number;
+  /** `HIDE_PASSWORD_LOGIN`: the login view asks `passwordFormHidden()` whether it may obey. */
+  hidePasswordLogin: boolean;
   /** Admin-configured server URL for each provider (may be empty) */
   providerUrls?: {
     jellyfin: string;
@@ -85,6 +87,7 @@ export function getRuntimeConfig(overrides?: Partial<RuntimeConfig>): RuntimeCon
     tmdbDefaultRegion: config.TMDB_DEFAULT_REGION || DEFAULT_TMDB_REGION,
     useStaticFilters: config.USE_STATIC_FILTERS,
     maxImageWidth: config.images.maxWidth,
+    hidePasswordLogin: config.auth.hidePasswordLogin,
     providerUrls: {
       jellyfin: config.JELLYFIN_URL || '',
       emby: config.EMBY_URL || '',

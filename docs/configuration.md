@@ -112,6 +112,7 @@ IMAGE_TIMEOUT_MS=12000                       # Per-image timeout; a timed-out im
 | `TMDB_ALLOWED_WATCH_PROVIDERS` |  | - | Comma-separated allowlist of selectable streaming services (case-insensitive substring match, e.g. `netflix,prime,disney,apple tv`). Unset = full TMDB list |
 | `AUTH_SECRET` |  | Auto-generated on boot/build | Secret used for session encryption and guest lending token encryption (min 32 chars). See Security & Privacy. |
 | `USE_SECURE_COOKIES` |  | `false` | Set to `true` for HTTPS deployments |
+| `HIDE_PASSWORD_LOGIN` |  | `false` | Hides the username/password form where the provider offers Quick Connect (Jellyfin), for SSO installs — Jellyfin's SSO plugin behind Authelia, for example. The flag is ignored on Plex, Emby and TMDB, and whenever Quick Connect is unavailable, because the login screen would then have no way in. |
 | `DATABASE_URL` |  | `file:/app/data/swiparr.db` | SQLite path or Turso URL [^1] |
 | `DATABASE_AUTH_TOKEN`|  | - | Auth token for remote databases (e.g. Turso) |
 | `APP_PUBLIC_URL` |  | `swipe.messer.wtf` | The public domain where the app is hosted (drives canonical URLs, OG images, `robots.txt` and secure cookies) |

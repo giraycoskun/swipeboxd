@@ -127,6 +127,8 @@ interface AuthViewProps {
   setQcCode: (val: string | null) => void;
   sessionCodeParam: string | null;
   hasQuickConnect: boolean;
+  /** Only true when Quick Connect is the alternative door — see `passwordFormHidden()`. */
+  hidePasswordForm: boolean;
   isExperimental: boolean;
   onProfilePictureChange?: (base64: string | null) => void;
   activeTab: string,
@@ -162,6 +164,7 @@ export function AuthView({
   setQcCode,
   sessionCodeParam,
   hasQuickConnect,
+  hidePasswordForm,
   isExperimental,
   onProfilePictureChange,
   activeTab,
@@ -211,8 +214,10 @@ export function AuthView({
         ) : (
           <form onSubmit={handleLogin} className="space-y-3">
             <CardDescription>
-              {isPlex 
+              {isPlex
                 ? 'Sign in to link with your Plex account'
+                : hidePasswordForm
+                ? `Sign in with ${providerName} Quick Connect`
                 : `Enter your ${providerName} credentials`
               }
             </CardDescription>
@@ -245,6 +250,13 @@ export function AuthView({
                   {loading ? "Creating PIN..." : "Sign in with PIN"}
                 </Button>
               </>
+            ) : hidePasswordForm ? (
+              // Password sign-in is switched off on this install (HIDE_PASSWORD_LOGIN) and Quick
+              // Connect is the door below. Say so instead of leaving a form with no explanation.
+              <p className="text-xs text-muted-foreground">
+                Password sign-in is turned off on this server. Start Quick Connect here and approve
+                the code in {providerName} to continue.
+              </p>
             ) : (
               <>
                 <Input
@@ -267,14 +279,16 @@ export function AuthView({
 
             {hasQuickConnect && !isPlex && (
               <>
-                <div className="relative py-1">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border" />
+                {!hidePasswordForm && (
+                  <div className="relative py-1">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-[10px] uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">Or</span>
+                    </div>
                   </div>
-                  <div className="relative flex justify-center text-[10px] uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Or</span>
-                  </div>
-                </div>
+                )}
                 <Button
                   type="button"
                   variant="outline"
