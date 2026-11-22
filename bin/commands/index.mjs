@@ -6,5 +6,6 @@ import { media } from "./media.mjs";
 import { member } from "./member.mjs";
 import { session, sessions } from "./sessions.mjs";
 import { status } from "./status.mjs";
+import { token } from "./token.mjs";
 
-export const commands = { status, libraries, deck, media, sessions, session, member, logs, diag };
+export const commands = { status, libraries, deck, media, sessions, session, member, logs, diag, token };

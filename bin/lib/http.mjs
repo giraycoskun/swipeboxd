@@ -19,12 +19,16 @@ export function apiUrl(ctx, path) {
   return `${ctx.baseUrl}${ctx.basePath}/api/v1${path}`;
 }
 
-export async function apiGet(ctx, path) {
+export function apiGet(ctx, path) {
+  return apiRequest(ctx, "GET", path);
+}
+
+export async function apiRequest(ctx, method, path, payload = null) {
   if (!ctx.token) {
     throw new CliError(
       "UNAUTHORIZED",
       "No agent token found.",
-      "Create one in Settings → Agents, pass --token, or run inside the container where /app/data/.agent-token exists."
+      "Create one inside the container with `messer-swipe token create <name>`, pass --token, or log in once so /app/data/.agent-token exists."
     );
   }
 
@@ -32,7 +36,13 @@ export async function apiGet(ctx, path) {
   let response;
   try {
     response = await fetch(url, {
-      headers: { authorization: `Bearer ${ctx.token}`, accept: "application/json" },
+      method,
+      headers: {
+        authorization: `Bearer ${ctx.token}`,
+        accept: "application/json",
+        ...(payload ? { "content-type": "application/json" } : {}),
+      },
+      ...(payload ? { body: JSON.stringify(payload) } : {}),
     });
   } catch (error) {
     throw new CliError(
