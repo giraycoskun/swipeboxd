@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DEFAULT_MEDIA_KIND, isMediaKind, itemKind, resolveSwipeKind } from "./media-kind";
+import { DEFAULT_MEDIA_KIND, isMediaKind, isSpoilerRisk, itemKind, resolveSwipeKind } from "./media-kind";
 
 test("an item without a Kind is a movie", () => {
   assert.equal(DEFAULT_MEDIA_KIND, "movie");
@@ -34,4 +34,14 @@ test("swipe kind falls back to the typed id, then to movie", () => {
 
 test("a client payload with a junk Kind does not poison the row", () => {
   assert.equal(resolveSwipeKind({ Kind: "banana" }, "tmdb:tv:1399"), "series");
+});
+
+test("only an unplayed episode is a spoiler risk", () => {
+  assert.equal(isSpoilerRisk({ Kind: "episode", UserData: { IsFavorite: false, Played: false } }), true);
+  // no UserData at all: the provider does not know, so do not hide what may be fine
+  assert.equal(isSpoilerRisk({ Kind: "episode" }), true);
+  assert.equal(isSpoilerRisk({ Kind: "episode", UserData: { IsFavorite: false, Played: true } }), false);
+  assert.equal(isSpoilerRisk({ Kind: "series" }), false);
+  assert.equal(isSpoilerRisk({}), false);
+  assert.equal(isSpoilerRisk(null), false);
 });

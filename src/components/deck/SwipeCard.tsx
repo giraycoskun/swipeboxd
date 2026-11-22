@@ -1,5 +1,5 @@
 "use client";
-import React, { forwardRef, useRef, memo } from "react";
+import React, { forwardRef, useRef, memo, useState } from "react";
 
 import { MediaItem } from "@/types";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,8 @@ import {
 import { Direction, FramerTinderCard, TinderCardHandle } from "./FrameTinderCard";
 import { OptimizedImage } from "@/components/ui/optimized-image";
 import { SourceBadges } from "./SourceBadges";
+import { SpoilerPanel } from "./SpoilerPanel";
+import { isSpoilerRisk } from "@/lib/media-kind";
 import { cn, ticksToTime } from "@/lib/utils";
 
 
@@ -31,6 +33,12 @@ export const SwipeCard = memo(forwardRef<TinderCardHandle, SwipeCardProps>(
   function SwipeCard({ item, index, onSwipe, onCardLeftScreen, onClick, preventSwipe = [] }, ref) {
 
     const isFront = index === 0;
+
+    // An unplayed episode gives itself away three times: the still, the episode
+    // title and the synopsis. Reveal is per card and deliberately not persisted —
+    // the next episode deserves the same courtesy.
+    const [revealed, setRevealed] = useState(false);
+    const masked = isSpoilerRisk(item) && !revealed;
 
     // Track the start position of the click/touch
 
@@ -94,6 +102,15 @@ export const SwipeCard = memo(forwardRef<TinderCardHandle, SwipeCardProps>(
             onPointerUp={isFront ? handlePointerUp : undefined}
           >
             <Card className={cn("relative h-full w-full overflow-hidden rounded-3xl border-border select-none isolate transform-gpu", isFront && "shadow-xl")}>
+              {masked ? (
+                <SpoilerPanel
+                  series={item.SeriesName ?? "Episode"}
+                  marker={`S${item.SeasonNumber ?? "?"}E${item.EpisodeNumber ?? "?"}`}
+                  runtime={item.RunTimeTicks ? ticksToTime(item.RunTimeTicks) : undefined}
+                  onReveal={() => setRevealed(true)}
+                />
+              ) : (
+              <>
               {/* Only the front card is legible; the three behind it are 95 %
                   covered, so they ask for a thumb instead of a full poster
                   (three fewer 1200 px decodes per deck, #94/#101). */}
@@ -174,10 +191,12 @@ export const SwipeCard = memo(forwardRef<TinderCardHandle, SwipeCardProps>(
                   )}
                   <SourceBadges item={item} />
                 </div>
-                <p className="line-clamp-3 text-sm text-neutral-400">
+                <p className="line-clamp-3 whitespace-pre-line text-sm text-neutral-400">
                   {item.Overview}
                 </p>
               </div>
+              </>
+              )}
 
             </Card>
           </div>

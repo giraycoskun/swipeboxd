@@ -34,3 +34,15 @@ export function resolveSwipeKind(item: unknown, id: string): MediaKind {
   }
   return kindFromId(id) ?? DEFAULT_MEDIA_KIND;
 }
+
+/**
+ * An episode that has not been played is a spoiler risk: its still, its title and
+ * its synopsis all give the plot away. Absent `Played` counts as unplayed — the
+ * provider cannot say it was watched, and a mask the reader can lift is the cheaper
+ * mistake than a spoiled reveal.
+ */
+export function isSpoilerRisk(
+  item?: Pick<MediaItem, "Kind" | "UserData"> | null
+): boolean {
+  return itemKind(item) === "episode" && item?.UserData?.Played !== true;
+}

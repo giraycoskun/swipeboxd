@@ -51,7 +51,11 @@ const series = {
   Seasons: 2,
   EpisodeCount: 20,
   InLibrary: true,
-  Overview: "Fixture series.",
+  // The API answers with the *mapped* item: the provider mapper has already turned the
+  // library's `<br>` into a newline (#105), and the unit test in jellyfin/map.test.ts is where
+  // that conversion is asserted. What this fixture checks is the other half — that a newline
+  // in the string actually renders as a line break instead of collapsing into a space.
+  Overview: "Fixture series.\nSecond paragraph.",
   UserData: { IsFavorite: false, Played: false },
 };
 const seasons = [
@@ -68,6 +72,12 @@ const check = (name, ok, detail) => {
   results.push({ name, ok, detail });
   console.log(`${ok ? "ok  " : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
 };
+
+// #99: a member can be signed into a server other than the one in compose. `/api/session`
+// knows which; the Watch link must be built from that, never from the instance URL.
+// The fixture server is a TMDB build, so the session is also given `requiresServerUrl` —
+// without it no Play link is drawn at all and the check would pass by rendering nothing.
+const SESSION_SERVER_URL = "https://jellyfin-two.example.invalid";
 
 function loadCredentials() {
   const file = process.env.E2E_CREDENTIALS || path.join(os.homedir(), "Server/etc/secrets/jellyfin.env");
@@ -140,6 +150,21 @@ const main = async () => {
   await page.route("**/api/media/children**", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ items: seasons }) }));
   await page.route("**/api/media/item/**", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify(series) }));
   await page.route("**/api/media/start-here**", (r) => r.fulfill({ contentType: "application/json", body: JSON.stringify({ startHere: { action: "start", label: "Start S1E1" }, hostOnly: false }) }));
+  // The session is the real one, rewritten: a second server URL and the capability that draws
+  // the Watch link. Everything else in the answer stays the server's (isGuest, filters, hasProgress).
+  await page.route(/\/api\/session(\?|$)/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json().catch(() => null);
+    if (!body) return route.fulfill({ response });
+    return route.fulfill({
+      response,
+      json: {
+        ...body,
+        serverUrl: SESSION_SERVER_URL,
+        capabilities: { ...body.capabilities, requiresServerUrl: true },
+      },
+    });
+  });
 
   await login(page, BASE);
   await page.screenshot({ path: path.join(SHOTS, "deck.png") });
@@ -169,6 +194,37 @@ const main = async () => {
   }, ratingText);
   check("series detail shows one rating", detail.ratings.length === 1, `found ${JSON.stringify(detail.ratings)} · ${detail.dbg}`);
   check("start-here heading matches the action", detail.hasPanel ? "Where to start" : "missing");
+
+  // 2b. #99: the Play link leaves this app for the server the member is signed into
+  const watch = await page.evaluate(() => {
+    const surfaces = Array.from(document.querySelectorAll('[data-slot="drawer-content"], [data-slot="sheet-content"], [role=dialog]'));
+    const surface = surfaces.sort((a, b) => (b.textContent || "").length - (a.textContent || "").length)[0];
+    const links = Array.from(surface?.querySelectorAll("a") || []).map((a) => ({ href: a.getAttribute("href") || "", resolved: a.href, text: (a.textContent || "").trim() }));
+    return { play: links.find((l) => /^Play/.test(l.text)) || null, seen: links.map((l) => l.text || l.href) };
+  });
+  check(
+    "the Play link points at the session's server, not the instance URL",
+    !!watch.play && watch.play.resolved.startsWith(SESSION_SERVER_URL),
+    watch.play ? watch.play.resolved : `no Play link · links: ${JSON.stringify(watch.seen)}`,
+  );
+
+  // 2c. #105: the synopsis keeps its line breaks and loses its markup
+  const synopsis = await page.evaluate(() => {
+    const surfaces = Array.from(document.querySelectorAll('[data-slot="drawer-content"], [data-slot="sheet-content"], [role=dialog]'));
+    const surface = surfaces.sort((a, b) => (b.textContent || "").length - (a.textContent || "").length)[0];
+    const paragraph = Array.from(surface?.querySelectorAll("p") || []).find((p) => /Fixture series/.test(p.textContent || ""));
+    return { text: paragraph?.innerText ?? null, html: paragraph?.innerHTML ?? null };
+  });
+  check(
+    "the synopsis prints no markup",
+    !!synopsis.text && !/<br\s*\/?>/i.test(synopsis.text) && !/&lt;/i.test(synopsis.text),
+    synopsis.text === null ? "no synopsis paragraph" : JSON.stringify(synopsis.text),
+  );
+  check(
+    "the synopsis keeps the provider's line break",
+    !!synopsis.text && synopsis.text.split("\n").filter(Boolean).length >= 2,
+    synopsis.text === null ? "no synopsis paragraph" : JSON.stringify(synopsis.text),
+  );
 
   // 3. switch: paper thumb, and the whole row toggles it
   await page.keyboard.press("Escape");

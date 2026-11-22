@@ -72,10 +72,63 @@ jobs:
       - run: node e2e/contract.mjs
         env:
           E2E_BASE_URL: "http://127.0.0.1:3100"
+      # The same server, the behaviour contract: the keys the guide prints, the hint row they
+      # raise, and the spoiler mask. Separate file so a layout failure and a behaviour failure
+      # stay distinguishable in the run list.
+      - run: node e2e/deck.mjs
+        env:
+          E2E_BASE_URL: "http://127.0.0.1:3100"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e2e-shots
+          path: e2e/shots
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # A group session, driven by two real browsers: create → join → match → takeover →
+  # persistence. It needs its own server and its own database (the fixtures are the same, but
+  # `session.mjs` reads the match rows out of SQLite directly), and TMDB mode is what makes it
+  # cheap — a display name is a fresh identity, no second Jellyfin account.
+  e2e-session:
+    runs-on: ubuntu-latest
+    env:
+      PROVIDER: tmdb
+      AUTH_SECRET: "ci-only-secret-ci-only-secret-00000000"
+      APP_PUBLIC_URL: "http://127.0.0.1:3101"
+      USE_SECURE_COOKIES: "false"
+      DATABASE_URL: "file:./ci-session.db"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      # session.mjs reads the durable match count with the sqlite3 CLI; do not weaken that to a
+      # route the app serves, which is what the check exists to avoid trusting.
+      - run: sudo apt-get update && sudo apt-get install -y sqlite3
+      - run: npm run db:migrate
+      - name: Start the app
+        run: |
+          npx next start -p 3101 &
+          for i in $(seq 1 90); do
+            if curl -sf http://127.0.0.1:3101/api/health >/dev/null; then echo "up after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "the app never answered /api/health"; exit 1
+      - run: node e2e/session.mjs
+        env:
+          E2E_SESSION_BASE_URL: "http://127.0.0.1:3101"
+          E2E_SESSION_DB: "ci-session.db"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-session-shots
           path: e2e/shots
           retention-days: 7
           if-no-files-found: ignore
