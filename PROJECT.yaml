@@ -41,9 +41,6 @@ health: "/api/health"
 
 # Every exception is dated and has a reason. An expired exception is an error.
 exceptions:
-  - id: no-screenshot
-    reason: The deck needs a seeded provider to render real cards — the hosted demo answers in TMDB mode with a skeleton deck, and a capture of a live install would show a real library. A seeded capture is the next documentation task.
-    expires: 2027-02-28
   - id: nextjs
     reason: >-
       Next 16 App Router app with route handlers, iron-session auth and a Drizzle database. It is a

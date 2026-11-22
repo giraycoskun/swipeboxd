@@ -6,7 +6,7 @@
 
 **Swipe on what to watch next, alone or with a group.**
 
-`MIT` · `Next` · `SQLite` · `v2.0.0` · `ghcr.io/jakobbjelver/messer-swipe`
+`MIT` · `Next` · `SQLite` · `v2.6.0` · `ghcr.io/jakobbjelver/messer-swipe`
 <!-- /messer:hero -->
 
 Swipe turns "what should we watch?" into a deck everyone can agree on. One person creates a session, the
@@ -15,6 +15,11 @@ others join from a phone, and the app finds the titles two people liked — or t
 It works with the media server you already run (Jellyfin, Plex, Emby) or standalone against TMDB, with
 no server at all. Mobile-first, installable, and it keeps its own tiny SQLite database of sessions,
 swipes and matches.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/screen-dark.png">
+  <img src="docs/brand/screen-light.png" alt="The deck: one card with its poster, tags and rating, and the pass, like, undo and filter controls" width="1200">
+</picture>
 
 ## Run
 
