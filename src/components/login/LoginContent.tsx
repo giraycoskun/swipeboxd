@@ -12,6 +12,7 @@ import logoDark from "../../../public/favicon-dark.svg"
 import { apiClient } from "@/lib/api-client";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { useRuntimeConfig } from "@/lib/runtime-config";
+import { passwordFormHidden } from "@/lib/login-mode";
 import { PROVIDER_CAPABILITIES, ProviderType } from "@/lib/providers/types";
 import { createPlexPinClient, buildPlexAuthUrl } from "@/lib/plex/client-auth";
 
@@ -34,7 +35,7 @@ interface LoginContentProps {
 const NO_SEARCH_PARAMS: SearchParamsRecord = {};
 
 export default function LoginContent({ searchParams: initialSearchParams = NO_SEARCH_PARAMS }: LoginContentProps) {
-  const { capabilities: initialCapabilities, basePath, provider, providerLock, providerUrls } = useRuntimeConfig();
+  const { capabilities: initialCapabilities, basePath, provider, providerLock, providerUrls, hidePasswordLogin } = useRuntimeConfig();
 
   const [selectedProvider, setSelectedProvider] = useState<string>(provider);
 
@@ -406,6 +407,11 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
                   setQcCode={setQcCode}
                   sessionCodeParam={sessionCodeParam}
                   hasQuickConnect={capabilities.hasQuickConnect}
+                  hidePasswordForm={passwordFormHidden({
+                    hidePasswordLogin,
+                    hasQuickConnect: capabilities.hasQuickConnect,
+                    provider: selectedProvider,
+                  })}
                   isExperimental={providerLock ? capabilities.isExperimental : selectedProvider === ProviderType.EMBY}
                   onProfilePictureChange={setProfilePicture}
                   activeTab={activeTab}

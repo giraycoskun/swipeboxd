@@ -27,6 +27,9 @@ const envSchema = z.object({
   // Auth & Security
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters").optional(),
   USE_SECURE_COOKIES: z.preprocess((val) => val === 'true', z.boolean()).default(false),
+  // Hides the username/password form where Quick Connect is the only door (#31). Ignored on a
+  // provider without Quick Connect — see src/lib/login-mode.ts.
+  HIDE_PASSWORD_LOGIN: z.preprocess((val) => val === 'true', z.boolean()).default(false),
   ALLOW_PRIVATE_PROVIDER_URLS: z.preprocess((val) => val === 'true', z.boolean()).default(false),
   PLEX_IMAGE_ALLOWED_HOSTS: z.string().optional(),
   ADMIN_USERNAME: z.string().optional(),
@@ -127,6 +130,7 @@ export const config = {
     secret: parsedEnv.AUTH_SECRET,
     secureCookies: parsedEnv.USE_SECURE_COOKIES,
     adminUsername: ADMIN_USERNAME,
+    hidePasswordLogin: parsedEnv.HIDE_PASSWORD_LOGIN,
   },
   security: {
     allowPrivateProviderUrls: parsedEnv.ALLOW_PRIVATE_PROVIDER_URLS,
