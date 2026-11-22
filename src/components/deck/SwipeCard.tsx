@@ -191,7 +191,7 @@ export const SwipeCard = memo(forwardRef<TinderCardHandle, SwipeCardProps>(
                   )}
                   <SourceBadges item={item} />
                 </div>
-                <p className="line-clamp-3 text-sm text-neutral-400">
+                <p className="line-clamp-3 whitespace-pre-line text-sm text-neutral-400">
                   {item.Overview}
                 </p>
               </div>

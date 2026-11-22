@@ -18,6 +18,7 @@ import {
 import { apiClient, getEmbyUrl, getAuthenticatedHeaders } from "@/lib/emby/api";
 import { getCachedYears, getCachedGenres, getCachedLibraries, getCachedRatings } from "@/lib/emby/cached-queries";
 import { JellyfinQueryResultSchema, JellyfinItemSchema } from "../schemas";
+import { normaliseOverview } from "../overview";
 import { DEFAULT_THEMES } from "@/lib/constants";
 import { mapJellyfinItem } from "@/lib/providers/jellyfin/map";
 import { JELLYFIN_ITEM_FIELDS, toIncludeItemTypes } from "@/lib/providers/jellyfin/params";
@@ -313,7 +314,7 @@ export class EmbyProvider implements MediaProvider {
       RunTimeTicks: item.RunTimeTicks,
       ProductionYear: item.ProductionYear,
       CommunityRating: item.CommunityRating,
-      Overview: item.Overview,
+      Overview: normaliseOverview(item.Overview),
       Taglines: item.Taglines,
       OfficialRating: item.OfficialRating,
       Genres: item.Genres,

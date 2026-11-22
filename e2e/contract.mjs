@@ -51,7 +51,11 @@ const series = {
   Seasons: 2,
   EpisodeCount: 20,
   InLibrary: true,
-  Overview: "Fixture series.",
+  // The API answers with the *mapped* item: the provider mapper has already turned the
+  // library's `<br>` into a newline (#105), and the unit test in jellyfin/map.test.ts is where
+  // that conversion is asserted. What this fixture checks is the other half — that a newline
+  // in the string actually renders as a line break instead of collapsing into a space.
+  Overview: "Fixture series.\nSecond paragraph.",
   UserData: { IsFavorite: false, Played: false },
 };
 const seasons = [
@@ -202,6 +206,24 @@ const main = async () => {
     "the Play link points at the session's server, not the instance URL",
     !!watch.play && watch.play.resolved.startsWith(SESSION_SERVER_URL),
     watch.play ? watch.play.resolved : `no Play link · links: ${JSON.stringify(watch.seen)}`,
+  );
+
+  // 2c. #105: the synopsis keeps its line breaks and loses its markup
+  const synopsis = await page.evaluate(() => {
+    const surfaces = Array.from(document.querySelectorAll('[data-slot="drawer-content"], [data-slot="sheet-content"], [role=dialog]'));
+    const surface = surfaces.sort((a, b) => (b.textContent || "").length - (a.textContent || "").length)[0];
+    const paragraph = Array.from(surface?.querySelectorAll("p") || []).find((p) => /Fixture series/.test(p.textContent || ""));
+    return { text: paragraph?.innerText ?? null, html: paragraph?.innerHTML ?? null };
+  });
+  check(
+    "the synopsis prints no markup",
+    !!synopsis.text && !/<br\s*\/?>/i.test(synopsis.text) && !/&lt;/i.test(synopsis.text),
+    synopsis.text === null ? "no synopsis paragraph" : JSON.stringify(synopsis.text),
+  );
+  check(
+    "the synopsis keeps the provider's line break",
+    !!synopsis.text && synopsis.text.split("\n").filter(Boolean).length >= 2,
+    synopsis.text === null ? "no synopsis paragraph" : JSON.stringify(synopsis.text),
   );
 
   // 3. switch: paper thumb, and the whole row toggles it

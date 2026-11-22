@@ -1,5 +1,6 @@
 import type { MediaItem, MediaKind } from "@/types/media";
 import { kindFromJellyfinType } from "./params";
+import { normaliseOverview } from "../overview";
 
 function getItemLanguage(item: any): string | undefined {
   const preferred = item.PreferredMetadataLanguage?.trim();
@@ -60,7 +61,7 @@ export function mapJellyfinItem(item: any): MediaItem {
     RunTimeTicks: item.RunTimeTicks,
     ProductionYear: item.ProductionYear,
     CommunityRating: item.CommunityRating,
-    Overview: item.Overview,
+    Overview: normaliseOverview(item.Overview),
     Taglines: item.Taglines,
     OfficialRating: item.OfficialRating,
     Genres: item.Genres,

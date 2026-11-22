@@ -279,7 +279,7 @@ export function MovieDetailView({ movieId, onClose, showLikedBy = true, sessionC
                 {/* SYNOPSIS */}
                 <div className="mb-8">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Synopsis</h3>
-                  <p className="text-foreground/90 text-base leading-relaxed">
+                  <p className="whitespace-pre-line text-foreground/90 text-base leading-relaxed">
                     {movie.Overview || "No overview available."}
                   </p>
                 </div>

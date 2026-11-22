@@ -146,3 +146,14 @@ test("Ended maps to a closed series with an end year", () => {
   assert.equal(item.Status, "ended");
   assert.equal(item.EndYear, 2024);
 });
+
+test("the synopsis is normalised where it is mapped, not where it is printed (#105)", () => {
+  // Jellyfin keeps the description an editor typed: the deck card, the detail sheet and the
+  // liker's row all read this one string, so the tags have to be gone by the time they get it.
+  const item = mapJellyfinItem({
+    ...movieFixture,
+    Overview: "Fifteen years later,<br/>the kitchen is still open.<br>Nobody has left.",
+  });
+
+  assert.equal(item.Overview, "Fifteen years later,\nthe kitchen is still open.\nNobody has left.");
+});
