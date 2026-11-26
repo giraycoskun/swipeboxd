@@ -39,6 +39,9 @@ docker run -d \
 Then open `http://localhost:4321`. Or build it yourself: `npm ci && npm run build && npm start` after
 `npm run db:migrate` (`make docker` builds the image the CI publishes).
 
+The example above uses the upstream image. To run your own changes, [publish a tagged Swipeboxd
+image](docs/maintaining.md#publish-a-swipeboxd-image) and use that image instead.
+
 `AUTH_SECRET` is generated on first boot and stored beside the database when unset; set it explicitly if
 you run more than one replica. For HTTPS set `USE_SECURE_COOKIES=true` and `APP_PUBLIC_URL` to the
 hostname that serves the app — it drives canonical URLs, the OG image, `robots.txt` and secure cookies.

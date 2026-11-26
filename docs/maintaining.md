@@ -4,13 +4,26 @@ This is the bus-factor page. It assumes you are not the person who wrote the cod
 
 ## The shape of a change
 
-1. `develop` is where work lands; `master` is what releases. **Never commit to `master` by hand** — merge
-   `develop` into it and let semantic-release tag.
+1. Push changes for CI first. Once the checks pass, [publish a fork image](#publish-a-swipeboxd-image)
+   by tagging the commit you want to run.
 2. `npm run check` (lint, typecheck, tests) is the gate. `npm run e2e` drives the real UI contract
    against a running instance; `npm run doctor` diagnoses a deployment.
-3. Commits follow [CONTRIBUTING](../CONTRIBUTING.md). A `feat:` on `master` is a minor release, a
-   `fix:` is a patch, `BREAKING CHANGE:` is major. Iterations on a bug are `chore:`/`refactor:` so the
-   first `fix:` is the only one that publishes.
+
+## Publish a Swipeboxd image
+
+Branch pushes do not publish images. Once the workflow is on the commit you want to publish, tag
+that commit and push the tag to `giraycoskun/swipeboxd`. Use `v<package-version>-swipeboxd.<revision>`
+and increment the revision for a new build of the same package version:
+
+```bash
+git tag -a v2.6.1-swipeboxd.1 -m 'Swipeboxd 2.6.1 build 1'
+git push origin refs/tags/v2.6.1-swipeboxd.1
+```
+
+When **Publish Swipeboxd Image** succeeds, set your Compose `image:` to
+`ghcr.io/giraycoskun/swipeboxd:v2.6.1-swipeboxd.1`. The same tag supports AMD64 and ARM64. The workflow
+does not move a `latest` tag or create a GitHub Release. If the package is private, authenticate to
+`ghcr.io` on the deployment host with credentials that can read the package before pulling.
 
 ## The maintenance engine
 
