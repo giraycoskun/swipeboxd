@@ -9,12 +9,22 @@
 `MIT` · `Next` · `SQLite` · `v2.6.0` · `ghcr.io/jakobbjelver/messer-swipe`
 <!-- /messer:hero -->
 
+> [!IMPORTANT]
+> **This is Swipeboxd — a personal fork of
+> [Messer Swipe](https://github.com/jakobbjelver/messer-swipe).** It is not the original project.
+> Giray runs it for his own viewing: the additions here are a **data source picker** at sign-in, a
+> **Letterboxd watchlist** source that needs only a public watchlist username (no API keys), and
+> **movie-themed avatars** instead of profile-picture uploads. Everything else tracks upstream so
+> `master` can be fast-forwarded from it — upstream's architecture, docs and release notes below
+> describe the shared product; the fork's own contract is in [`AGENTS.md`](AGENTS.md).
+
 Swipe turns "what should we watch?" into a deck everyone can agree on. One person creates a session, the
 others join from a phone, and the app finds the titles two people liked — or that everyone did.
 
-It works with the media server you already run (Jellyfin, Plex, Emby) or standalone against TMDB, with
-no server at all. Mobile-first, installable, and it keeps its own tiny SQLite database of sessions,
-swipes and matches.
+It works with the media server you already run (Jellyfin, Plex, Emby), standalone against TMDB, or —
+in this fork — straight against a public [Letterboxd](https://letterboxd.com) watchlist, with
+no server and no API key at all. Mobile-first, installable, and it keeps its own tiny SQLite database of
+sessions, swipes and matches.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/brand/screen-dark.png">
@@ -46,14 +56,15 @@ image](docs/maintaining.md#publish-a-swipeboxd-image) and use that image instead
 you run more than one replica. For HTTPS set `USE_SECURE_COOKIES=true` and `APP_PUBLIC_URL` to the
 hostname that serves the app — it drives canonical URLs, the OG image, `robots.txt` and secure cookies.
 
-A hosted demo runs at **[swipe.messer.wtf](https://swipe.messer.wtf)** in TMDB mode. One-click deploy to
+A hosted demo of **upstream** runs at **[swipe.messer.wtf](https://swipe.messer.wtf)** in TMDB mode. One-click deploy to
 Vercel: [clone with the Turso integration](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjakobbjelver%2Fmesser-swipe&env=PROVIDER,TMDB_ACCESS_TOKEN,USE_SECURE_COOKIES&envDefaults=%7B%22PROVIDER%22%3A%22tmdb%22%2C%22USE_SECURE_COOKIES%22%3A%22true%22%7D&project-name=messer-swipe).
 
 ## What it does
 
 |  |  |
 |---|---|
-| **Providers** | Jellyfin and TMDB are the supported pair; Emby and Plex are experimental |
+| **Providers** | Jellyfin and TMDB are the supported pair; Emby and Plex are experimental; this fork adds **Letterboxd watchlists** — pick it at sign-in and enter a public watchlist username |
+| **Avatars** | this fork swaps picture uploads for a cast of eight movie-themed avatars at sign-in, guest join and in settings |
 | **Shows** | series cards with seasons, episodes and the commitment numbers; a detail sheet that answers "where do I start" |
 | **Deck modes** | movies, shows, whole shows or single episodes, what you are already watching, or both kinds mixed |
 | **Sessions** | create or join in seconds from a link; no account for a guest |
@@ -72,10 +83,11 @@ The variables that matter most:
 
 | Variable | Default | |
 |---|---|---|
-| `PROVIDER` | `jellyfin` | `jellyfin`, `plex`, `emby` or `tmdb` |
-| `PROVIDER_LOCK` | `true` | `false` lets a visitor choose their own provider |
+| `PROVIDER` | `jellyfin` | `jellyfin`, `plex`, `emby`, `tmdb` or (this fork) `letterboxd` |
+| `PROVIDER_LOCK` | `true` | `false` lets a visitor choose their own provider or a Letterboxd watchlist |
 | `JELLYFIN_URL` / `PLEX_URL` / `EMBY_URL` | — | the server the app reads from |
 | `TMDB_ACCESS_TOKEN` | — | required for `PROVIDER=tmdb` |
+| `LETTERBOXD_WATCHLIST_URL` | — | fork only: one fixed public watchlist for a locked Letterboxd instance; unlocked instances ask for a username at sign-in |
 | `DATABASE_URL` | `file:/app/data/swiparr.db` | a SQLite path, or a Turso URL with `DATABASE_AUTH_TOKEN` |
 | `APP_PUBLIC_URL` | `swipe.messer.wtf` | canonical host; set it to yours |
 | `AUTH_SECRET` | generated | session and guest-lending keys, ≥ 32 chars |
@@ -128,8 +140,10 @@ fetch has a timeout, and a failure is a `504` the card retries — never a cache
 
 ## Status
 
-Active. The supported path is Jellyfin and TMDB; Emby and Plex work and are labelled experimental
-because their libraries differ in ways that still surprise the deck.
+Active — as Giray's personal instance. The supported path is Jellyfin and TMDB; Emby and Plex work and
+are labelled experimental because their libraries differ in ways that still surprise the deck. The
+fork's own additions (Letterboxd watchlists, avatars, the source picker) are developed on `dev` and
+released to `master` manually; upstream's demo, image registry and issue tracker are not this fork's.
 
 ## License
 
