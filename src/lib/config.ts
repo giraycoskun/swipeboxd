@@ -42,6 +42,7 @@ const envSchema = z.object({
   TMDB_DEFAULT_REGION: z.string().optional(),
   TMDB_ALLOWED_WATCH_PROVIDERS: z.string().optional(),
   PLEX_TOKEN: z.string().optional(),
+  LETTERBOXD_WATCHLIST_URL: z.string().optional(),
 
   // UI / Proxy
   URL_BASE_PATH: z.string().default(''),

@@ -88,6 +88,8 @@ export function imageQueryFor(provider: ProviderType | string | undefined, reque
       };
     case ProviderType.TMDB:
       return { width: String(request.width) };
+    case ProviderType.LETTERBOXD:
+      return { width: String(request.width), quality: String(request.quality) };
     default:
       return {};
   }

@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { assertSafeUrl } from "@/lib/security/url-guard";
 import { config } from "@/lib/config";
+import { MOVIE_AVATAR_IDS } from "@/lib/movie-avatars";
+
+export const profileAvatarSchema = z.object({ avatarId: z.enum(MOVIE_AVATAR_IDS) });
 
 export const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -18,14 +21,15 @@ export const loginSchema = z.object({
       }
     }, "Invalid or blocked server URL"),
     tmdbToken: z.string().optional(),
+    watchlistUsername: z.string().max(64).optional(),
   }).optional(),
-  profilePicture: z.string().optional(), // Base64 encoded
+  avatarId: profileAvatarSchema.shape.avatarId.optional(),
 });
 
 export const guestLoginSchema = z.object({
   username: z.string().min(1, "Username is required").max(50),
   sessionCode: z.string().max(4).optional().or(z.literal("")),
-  profilePicture: z.string().optional(), // Base64 encoded
+  avatarId: profileAvatarSchema.shape.avatarId.optional(),
 });
 
 

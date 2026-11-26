@@ -1,17 +1,10 @@
 import sharp from "sharp";
 import { db, userProfiles } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { movieAvatarSvg, type MovieAvatarId } from "@/lib/movie-avatars";
 
-export async function saveProfilePicture(userId: string, imageBuffer: Buffer, contentType: string) {
-    // Process image: resize to 128x128 and convert to webp
-    const processedImage = await sharp(imageBuffer)
-        .rotate()
-        .resize(128, 128, {
-            fit: 'cover',
-            position: 'center'
-        })
-        .webp({ quality: 80 })
-        .toBuffer();
+export async function saveProfileAvatar(userId: string, avatarId: MovieAvatarId) {
+    const processedImage = await sharp(Buffer.from(movieAvatarSvg(avatarId))).webp().toBuffer();
 
     const updatedAt = new Date().toISOString();
 

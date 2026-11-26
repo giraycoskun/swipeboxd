@@ -49,6 +49,27 @@ TMDB_ALLOWED_WATCH_PROVIDERS=netflix,prime,disney  # Limit selectable streaming 
 ```
 </details>
 
+### Letterboxd watchlist setup
+
+To let users choose their source, set `PROVIDER_LOCK=false` in Compose (under `environment:`) or in
+the local `.env`, then restart. On the entry screen, choose **Letterboxd watchlist**, enter a username
+such as `giraycoskun`, and enter a display name for Swipeboxd. The app builds the watchlist URL; the
+list must be public. Each user can choose a different list. To change sources later, log out and pick
+another source. Jellyfin, Emby, Plex, and TMDB keep their existing connection requirements.
+
+To serve one fixed Letterboxd watchlist instead, set:
+
+```env
+PROVIDER=letterboxd
+PROVIDER_LOCK=true
+LETTERBOXD_WATCHLIST_URL=https://letterboxd.com/giraycoskun/watchlist/
+```
+
+Enter a display name to start swiping. The deck follows the watchlist's order, reads up to 40 public
+pages, and caches watchlist pages for about five minutes. Posters and film details are loaded from
+Letterboxd when available. Neither Letterboxd nor TMDB keys are needed. Private watchlists, deck
+filters, and writing swipe results back to Letterboxd aren't supported.
+
 ### Security & Advanced Options
 
 ```env
@@ -97,7 +118,7 @@ IMAGE_TIMEOUT_MS=12000                       # Per-image timeout; a timed-out im
 
 | Variable | Required? | Default | Description |
 |----------|-----------|---------|-------------|
-| `PROVIDER` |  | `jellyfin` | Primary media provider (`jellyfin`, `tmdb`, `plex`, `emby`) |
+| `PROVIDER` |  | `jellyfin` | Primary media provider (`jellyfin`, `tmdb`, `plex`, `emby`, `letterboxd`) |
 | `PROVIDER_LOCK` |  | `true` | If `true`, users cannot change the provider at runtime |
 | `JELLYFIN_URL` |  | - | Internal URL of your Jellyfin server |
 | `JELLYFIN_PUBLIC_URL` |  | - | Public URL of your Jellyfin server (for client-side access) |
@@ -107,6 +128,7 @@ IMAGE_TIMEOUT_MS=12000                       # Per-image timeout; a timed-out im
 | `PLEX_URL` |  | - | Internal URL of your Plex server |
 | `PLEX_PUBLIC_URL` |  | - | Public URL of your Plex server (for client-side access) |
 | `PLEX_TOKEN` |  | - | Plex Admin/Access Token |
+| `LETTERBOXD_WATCHLIST_URL` | Locked Letterboxd mode | - | Public `https://letterboxd.com/<username>/watchlist/` URL; unlocked users enter a username |
 | `TMDB_ACCESS_TOKEN` |  | - | TMDB API Read-Only Access Token |
 | `TMDB_DEFAULT_REGION` |  | `SE` | Default TMDB region (ISO 3166-1) for streaming availability/certifications |
 | `TMDB_ALLOWED_WATCH_PROVIDERS` |  | - | Comma-separated allowlist of selectable streaming services (case-insensitive substring match, e.g. `netflix,prime,disney,apple tv`). Unset = full TMDB list |

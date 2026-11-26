@@ -16,7 +16,7 @@ import {
 
 interface DeckEmptyProps {
   onRefresh: () => void;
-  onOpenFilter: () => void;
+  onOpenFilter?: () => void;
   deckMode?: string;
 }
 
@@ -41,6 +41,10 @@ const EMPTY_COPY: Record<string, { title: string; description: string }> = {
   mixed: {
     title: "Nothing left to swipe.",
     description: "Films and shows are used up. Refresh to fetch more, or adjust the filters.",
+  },
+  letterboxd: {
+    title: "Nothing left to swipe.",
+    description: "Add films to the Letterboxd watchlist and refresh after it updates.",
   },
 };
 
@@ -69,15 +73,17 @@ export function DeckEmpty({ onRefresh, onOpenFilter, deckMode }: DeckEmptyProps)
             <ArrowsCounterClockwise />
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-28"
-            onClick={onOpenFilter}
-          >
-            <SlidersHorizontal />
-            Filter
-          </Button>
+          {onOpenFilter && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-28"
+              onClick={onOpenFilter}
+            >
+              <SlidersHorizontal />
+              Filter
+            </Button>
+          )}
         </EmptyContent>
       </Empty>
     </div>

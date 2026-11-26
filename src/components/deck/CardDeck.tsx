@@ -39,6 +39,7 @@ export function CardDeck() {
 
   const { data: sessionStatus, isLoading: isLoadingSession, isError: isErrorSession } = useSession();
   const sessionCode = sessionStatus?.code || null;
+  const isLetterboxd = sessionStatus?.provider === ProviderType.LETTERBOXD;
   const sessionFilters = sessionStatus?.filters || { genres: [] };
   const sessionSettings = sessionStatus?.settings;
 
@@ -316,7 +317,7 @@ export function CardDeck() {
     openMovie(activeDeck[0].Id, { showLikedBy: false, sessionCode })), { enabled: deckReady });
   // F opens the drawer; Escape (Radix) closes it, so the key never has to toggle
   // something the reader cannot currently see.
-  useHotkeys("f", whenNoDialog(() => setIsFilterOpen(true)), { enabled: deckReady });
+  useHotkeys("f", whenNoDialog(() => setIsFilterOpen(true)), { enabled: deckReady && !isLetterboxd });
   useHotkeys("up", whenNoDialog(() => activeDeck[0] &&
     openMovie(activeDeck[0].Id, { showLikedBy: false, sessionCode })), { enabled: deckReady });
 
@@ -345,7 +346,7 @@ export function CardDeck() {
   }
 
   if (isErrorSession || isError) {
-    return <DeckError />;
+    return <DeckError isLetterboxd={isLetterboxd} />;
   }
 
   const leftSwipesRemaining = sessionSettings?.maxLeftSwipes ? Math.max(0, sessionSettings.maxLeftSwipes - (stats?.mySwipes.left || 0)) : undefined;
@@ -368,12 +369,12 @@ export function CardDeck() {
       ) : <div className="h-8.75" />}
       <div className="relative w-full h-[68svh] flex justify-center items-center select-none">
         {activeDeck.length === 0 ? (
-          <DeckEmpty deckMode={sessionFilters?.deckMode} onRefresh={() => {
+          <DeckEmpty deckMode={isLetterboxd ? "letterboxd" : sessionFilters?.deckMode} onRefresh={() => {
             setRemovedIds([]);
             swipedIdsRef.current.clear();
             setDisplayDeck([]);
             refetch();
-          }} onOpenFilter={() => setIsFilterOpen(true)} />
+          }} onOpenFilter={isLetterboxd ? undefined : () => setIsFilterOpen(true)} />
         ) : (
           <>
             {activeDeck.slice(0, 4).reverse().map((item: MediaItem, i, arr) => {
@@ -403,7 +404,7 @@ export function CardDeck() {
         onRewind={rewind}
         onSwipeLeft={() => handleSwipeAction("left")}
         onSwipeRight={() => handleSwipeAction("right")}
-        onOpenFilter={() => setIsFilterOpen(true)}
+        onOpenFilter={isLetterboxd ? undefined : () => setIsFilterOpen(true)}
         canRewind={!!lastSwipe}
         hasAppliedFilters={hasAppliedFilters}
         leftSwipesRemaining={leftSwipesRemaining}
@@ -411,7 +412,7 @@ export function CardDeck() {
       />
 
       <div className="mt-3 w-full">
-        <DeckHints />
+        <DeckHints showFilters={!isLetterboxd} />
       </div>
 
       {currentMatch && (
@@ -426,12 +427,14 @@ export function CardDeck() {
         />
       )}
 
-      <FilterDrawer
-        open={isFilterOpen}
-        onOpenChange={setIsFilterOpen}
-        currentFilters={sessionFilters}
-        onSave={updateFilters}
-      />
+      {!isLetterboxd && (
+        <FilterDrawer
+          open={isFilterOpen}
+          onOpenChange={setIsFilterOpen}
+          currentFilters={sessionFilters}
+          onSave={updateFilters}
+        />
+      )}
     </div>
   );
 }

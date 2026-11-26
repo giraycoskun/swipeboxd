@@ -41,9 +41,12 @@ record("AUTH_SECRET", has("AUTH_SECRET"), has("AUTH_SECRET") ? `${env.AUTH_SECRE
 
 // 3. Provider and its endpoint
 const provider = (env.PROVIDER || "jellyfin").toLowerCase();
-record("PROVIDER", ["jellyfin", "emby", "plex", "tmdb"].includes(provider), provider);
+record("PROVIDER", ["jellyfin", "emby", "plex", "tmdb", "letterboxd"].includes(provider), provider);
 
-if (provider !== "tmdb") {
+if (provider === "letterboxd") {
+  record("LETTERBOXD_WATCHLIST_URL", has("LETTERBOXD_WATCHLIST_URL"),
+    has("LETTERBOXD_WATCHLIST_URL") ? "configured" : "missing — set a public Letterboxd watchlist URL");
+} else if (provider !== "tmdb") {
   const url = env[`${provider.toUpperCase()}_URL`];
   record(`${provider.toUpperCase()}_URL`, Boolean(url), url || "missing");
 }

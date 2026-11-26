@@ -13,6 +13,7 @@ export interface UserSession {
     serverUrl?: string;
     machineId?: string;
     tmdbToken?: string;
+    watchlistUrl?: string;
   };
 }
 

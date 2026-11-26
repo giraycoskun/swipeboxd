@@ -2,10 +2,14 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { CardDescription } from "@/components/ui/card";
-import { ProfilePicturePicker } from "../profile/ProfilePicturePicker";
+import { ProfileAvatarPicker } from "../profile/ProfileAvatarPicker";
+import type { MovieAvatarId } from "@/lib/movie-avatars";
 
 interface UniversalViewProps {
+  isLetterboxd?: boolean;
   providerLock: boolean;
+  watchlistUsername: string;
+  setWatchlistUsername: (val: string) => void;
   tmdbToken: string;
   setTmdbToken: (val: string) => void;
   username: string;
@@ -13,11 +17,15 @@ interface UniversalViewProps {
   loading: boolean;
   handleLogin: (e: React.FormEvent) => void;
   isJoining?: boolean;
-  onProfilePictureChange?: (base64: string | null) => void;
+  avatarId: MovieAvatarId | null;
+  onAvatarChange: (avatarId: MovieAvatarId | null) => void;
 }
 
 export function UniversalView({
+  isLetterboxd,
   providerLock,
+  watchlistUsername,
+  setWatchlistUsername,
   tmdbToken,
   setTmdbToken,
   username,
@@ -25,28 +33,43 @@ export function UniversalView({
   loading,
   handleLogin,
   isJoining,
-  onProfilePictureChange,
+  avatarId,
+  onAvatarChange,
 }: UniversalViewProps) {
+  const needsWatchlistUsername = isLetterboxd && !providerLock && !isJoining;
   return (
     <div className="space-y-2">
       <form onSubmit={handleLogin} className="space-y-2">
         <div className="flex justify-center pb-2">
-          <ProfilePicturePicker
-            userName={username || "U"}
-            onImageSelected={onProfilePictureChange}
-          />
+          <ProfileAvatarPicker value={avatarId} onChange={onAvatarChange} />
         </div>
 
         <CardDescription>
           {isJoining
             ? "Enter a display name to join the session"
-            : (providerLock
+            : needsWatchlistUsername ? "Enter the Letterboxd username for a public watchlist"
+            : isLetterboxd ? "Enter a display name to swipe on the Letterboxd watchlist" : (providerLock
               ? "Enter a name to start swiping"
               : "Configure TMDB and enter a name")}
         </CardDescription>
 
-        {!providerLock && !isJoining && (
+        {needsWatchlistUsername && (
+          <div className="space-y-1">
+            <label htmlFor="watchlist-username" className="text-sm font-medium">Letterboxd username</label>
+            <Input
+              id="watchlist-username"
+              placeholder="e.g. giraycoskun"
+              value={watchlistUsername}
+              onChange={(e) => setWatchlistUsername(e.target.value)}
+              autoCapitalize="none"
+              spellCheck={false}
+              maxLength={64}
+              required
+            />
+          </div>
+        )}
 
+        {!isLetterboxd && !providerLock && !isJoining && (
           <PasswordInput
             placeholder="TMDB API Read Access Token"
             value={tmdbToken}
@@ -56,14 +79,18 @@ export function UniversalView({
           />
         )}
 
-        <Input
-          placeholder="Display name"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="bg-muted border-input"
-          autoFocus
-        />
-        <Button type="submit" className="w-full font-semibold mt-4" disabled={loading || !username}>
+        <div className="space-y-1">
+          {needsWatchlistUsername && <label htmlFor="display-name" className="text-sm font-medium">Display name</label>}
+          <Input
+            id="display-name"
+            placeholder="Display name"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="bg-muted border-input"
+            autoFocus
+          />
+        </div>
+        <Button type="submit" className="w-full font-semibold mt-4" disabled={loading || !username.trim() || (needsWatchlistUsername && !watchlistUsername.trim())}>
           {loading ? (isJoining ? "Joining..." : "Starting...") : (isJoining ? "Join" : "Start")}
         </Button>
       </form>

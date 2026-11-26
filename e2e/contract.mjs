@@ -97,7 +97,22 @@ const luminance = (rgb) => {
 
 const login = async (page, base) => {
   await page.goto(`${base}/login`, { waitUntil: "domcontentloaded" });
+  const source = page.getByRole("combobox", { name: "Data source" });
   const submit = page.locator("button[type=submit]");
+  if (await source.count()) {
+    check("unlocked sign-in waits for a source choice", !(await submit.count()));
+    await source.click();
+    await page.getByRole("option", { name: "Letterboxd watchlist" }).click();
+    const watchlistUser = page.getByRole("textbox", { name: "Letterboxd username" });
+    check("Letterboxd asks for a username, not a URL or password", await watchlistUser.isVisible() && !(await page.locator('input[type="url"], input[type="password"]').count()));
+    await page.getByPlaceholder("Display name").fill("Reviewer");
+    check("Letterboxd won't start without a username", await submit.isDisabled());
+    await watchlistUser.fill("giraycoskun");
+    check("a Letterboxd username and display name enable Start", await submit.isEnabled());
+    await source.click();
+    await page.getByRole("option", { name: "TMDB", exact: true }).click();
+    check("switching sources removes the watchlist field", !(await watchlistUser.count()));
+  }
   // A library-backed instance asks for a username and password; a streaming-only one asks for
   // a display name. The fixtures answer the media API either way, so accept both forms.
   const name = page.locator('input[placeholder="Display name"]');
@@ -127,6 +142,16 @@ const login = async (page, base) => {
     await page.waitForTimeout(12000);
     return;
   }
+  await page.getByRole("button", { name: "Choose movie avatar", exact: true }).click();
+  const cast = page.getByRole("dialog", { name: "Cast yourself" });
+  // `pressed: false` also matches the dialog's Close button, so count buttons instead:
+  // the eight catalog avatars plus Close, and never a file input.
+  const avatarNames = ["Moonwalker", "Night Sleuth", "Kaiju Kid", "Neon Driver", "Reel Ghost", "Tin Hero", "Spellbinder", "Projectionist"];
+  for (const avatarName of avatarNames) await cast.getByRole("button", { name: avatarName, exact: true }).waitFor();
+  check("sign-in only offers catalog avatars", await cast.getByRole("button").count() === avatarNames.length + 1 && !(await page.locator('input[type="file"]').count()));
+  await cast.getByRole("button", { name: "Kaiju Kid" }).click();
+  await page.getByRole("button", { name: "Choose movie avatar (Kaiju Kid selected)" }).waitFor({ timeout: 5000 });
+  check("chosen avatar appears in the sign-in preview", true);
   // hydration can swallow the first typing; retype until the form accepts it
   for (let attempt = 0; attempt < 4; attempt++) {
     await name.click();
@@ -137,6 +162,9 @@ const login = async (page, base) => {
   }
   await submit.click();
   await page.waitForTimeout(9000);
+  const session = await (await page.request.get(`${base}/api/session`)).json();
+  const avatar = await page.request.get(`${base}/api/user/profile-picture/${session.userId}`);
+  check("chosen avatar is served after sign-in", session.hasCustomProfilePicture && avatar.ok() && avatar.headers()["content-type"] === "image/webp");
 };
 
 const main = async () => {

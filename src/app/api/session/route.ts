@@ -6,7 +6,7 @@ import { SessionData } from "@/types";
 import { sessionActionSchema, sessionSettingsSchema } from "@/lib/validations";
 import { ProviderType } from "@/lib/providers/types";
 import { getEffectiveCapabilities } from "@/lib/runtime-config";
-import { SessionService } from "@/lib/services/session-service";
+import { SessionService, WatchlistMismatchError } from "@/lib/services/session-service";
 import { AuthService, GuestKickedError } from "@/lib/services/auth-service";
 import { ConfigService } from "@/lib/services/config-service";
 import { db, sessions, userProfiles, sessionMembers } from "@/lib/db";
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, code });
     }
   } catch (e: any) {
+    if (e instanceof WatchlistMismatchError) return NextResponse.json({ error: e.message }, { status: 409 });
     return handleApiError(e, "Failed to perform session action");
   }
 

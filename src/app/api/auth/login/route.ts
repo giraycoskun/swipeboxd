@@ -11,6 +11,10 @@ import { AuthService } from "@/lib/services/auth-service";
 import { ensureLocalAgentToken } from "@/lib/agent/local";
 import { logger } from "@/lib/logger";
 import { handleApiError } from "@/lib/api-utils";
+import { config } from "@/lib/config";
+import { ProviderType } from "@/lib/providers/types";
+import { watchlistUrl, watchlistUrlFromUsername } from "@/lib/providers/letterboxd/map";
+import { saveProfileAvatar } from "@/lib/server/profile-picture";
 
 export async function POST(request: NextRequest) {
     let usernameForLog = "unknown";
@@ -22,7 +26,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: "Invalid input" }, { status: 400 });
         }
 
-        const { username, password, provider: bodyProvider, config: providerConfig, profilePicture } = validated.data;
+        const { username, password, provider: bodyProvider, config: providerConfig, avatarId } = validated.data;
         usernameForLog = username;
 
         const baseDeviceId = crypto.randomUUID();
@@ -30,8 +34,26 @@ export async function POST(request: NextRequest) {
 
         logger.info(`[Auth] Attempting login for user: ${username} with deviceId: ${deviceId}`);
 
+        if (bodyProvider && config.app.providerLock && bodyProvider !== config.app.provider) {
+            return NextResponse.json({ message: "This instance uses a fixed data source." }, { status: 403 });
+        }
         const provider = getMediaProvider(bodyProvider);
-        const activeProviderName = bodyProvider || provider.name;
+        const activeProviderName = provider.name;
+        const { watchlistUsername, ...connectionConfig } = providerConfig ?? {};
+        let activeProviderConfig: SessionData["user"]["providerConfig"] = providerConfig ? connectionConfig : undefined;
+        if (activeProviderName === ProviderType.LETTERBOXD) {
+            try {
+                const url = config.app.providerLock
+                    ? watchlistUrl(config.LETTERBOXD_WATCHLIST_URL)
+                    : watchlistUrlFromUsername(watchlistUsername);
+                activeProviderConfig = { watchlistUrl: url };
+            } catch {
+                const message = config.app.providerLock
+                    ? "The instance's Letterboxd watchlist URL is not configured correctly."
+                    : "Enter a Letterboxd username using only letters, numbers, or underscores.";
+                return NextResponse.json({ message }, { status: 400 });
+            }
+        }
         
         if (!provider.authenticate) {
             return NextResponse.json({ message: "Authentication not supported by this provider" }, { status: 400 });
@@ -65,18 +87,16 @@ export async function POST(request: NextRequest) {
             isAdmin: await AuthService.isAdmin(userId, userName, activeProviderName),
             wasMadeAdmin: wasMadeAdmin,
             provider: activeProviderName,
-            providerConfig: providerConfig,
+            providerConfig: activeProviderConfig,
         };
+        session.sessionCode = undefined;
         session.isLoggedIn = true;
 
-        if (profilePicture) {
+        if (avatarId) {
             try {
-                const { saveProfilePicture } = await import("@/lib/server/profile-picture");
-                const base64Data = profilePicture.replace(/^data:image\/\w+;base64,/, "");
-                const buffer = Buffer.from(base64Data, 'base64');
-                await saveProfilePicture(userId, buffer, "image/webp");
+                await saveProfileAvatar(userId, avatarId);
             } catch (e) {
-                logger.error("[Auth] Failed to save profile picture:", e);
+                logger.error("[Auth] Failed to save avatar:", e);
             }
         }
     

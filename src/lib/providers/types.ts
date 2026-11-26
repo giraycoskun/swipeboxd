@@ -13,7 +13,8 @@ export enum ProviderType {
   JELLYFIN = 'jellyfin',
   TMDB = 'tmdb',
   PLEX = 'plex',
-  EMBY = 'emby'
+  EMBY = 'emby',
+  LETTERBOXD = 'letterboxd',
 }
 
 export interface ProviderCapabilities {
@@ -99,6 +100,21 @@ export const PROVIDER_CAPABILITIES: Record<ProviderType, ProviderCapabilities> =
     hasProgress: false,
     hasNextUp: false,
   },
+  [ProviderType.LETTERBOXD]: {
+    hasAuth: false,
+    hasQuickConnect: false,
+    hasWatchlist: false,
+    hasLibraries: false,
+    hasSettings: false,
+    requiresServerUrl: false,
+    isExperimental: false,
+    hasStreamingSettings: false,
+    isAdminPanel: false,
+    hasSeries: false,
+    hasSeasons: false,
+    hasProgress: false,
+    hasNextUp: false,
+  },
 };
 
 
@@ -155,6 +171,8 @@ export interface MediaProvider {
 
   // Items
   getItems(filters: SearchFilters, auth?: AuthContext): Promise<MediaItem[]>;
+  /** A fixed-order source can page before resolving details for unswiped items. */
+  getDeckPage?(offset: number, limit: number, excluded: ReadonlySet<string>, auth: AuthContext, searchTerm?: string): Promise<{ items: MediaItem[]; hasMore: boolean }>;
   getItemDetails(id: string, auth?: AuthContext, options?: { includeUserState?: boolean }): Promise<MediaItem>;
 
   // Shows (2.0). Optional: a provider declares support through its capability flags.
@@ -194,6 +212,7 @@ export interface AuthContext {
   serverUrl?: string;
   tmdbToken?: string;
   watchRegion?: string;
+  watchlistUrl?: string;
 }
 
 export interface ImageResponse {

@@ -33,8 +33,6 @@ export class MediaService {
     const provider = getMediaProvider(auth.provider);
     const activeProviderName = auth.provider || session.user.provider || ProviderType.JELLYFIN;
 
-    const includedLibraries = await ConfigService.getIncludedLibraries();
-
     // 1. Get existing interactions to exclude
     const [liked, hidden] = await Promise.all([
       db.select({ externalId: likes.externalId })
@@ -56,6 +54,14 @@ export class MediaService {
       ...liked.map((l: any) => l.externalId),
       ...hidden.map((h: any) => h.externalId)
     ]);
+
+    if (provider.getDeckPage) {
+      const pageSize = Number.isSafeInteger(limit) ? Math.min(50, Math.max(1, limit)) : 20;
+      const offset = Number.isSafeInteger(page) && page > 0 ? page * pageSize : 0;
+      return provider.getDeckPage(offset, pageSize, excludeIds, auth, searchTerm);
+    }
+
+    const includedLibraries = await ConfigService.getIncludedLibraries();
 
     // Calculate effective offset to handle item shifting due to swipes
     // Total swiped items (liked + hidden) for the current mode

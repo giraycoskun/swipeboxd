@@ -11,7 +11,8 @@ import {
   Warning,
 } from "@phosphor-icons/react/dist/ssr";
 import { ProviderType } from "@/lib/providers/types";
-import { ProfilePicturePicker } from "../profile/ProfilePicturePicker";
+import { ProfileAvatarPicker } from "../profile/ProfileAvatarPicker";
+import type { MovieAvatarId } from "@/lib/movie-avatars";
 import {
   ArrowSquareOut,
   Copy,
@@ -130,7 +131,8 @@ interface AuthViewProps {
   /** Only true when Quick Connect is the alternative door — see `passwordFormHidden()`. */
   hidePasswordForm: boolean;
   isExperimental: boolean;
-  onProfilePictureChange?: (base64: string | null) => void;
+  avatarId: MovieAvatarId | null;
+  onAvatarChange: (avatarId: MovieAvatarId | null) => void;
   activeTab: string,
   setActiveTab: (activeTab: string) => void;
   startPlexPinAuth?: () => void;
@@ -166,7 +168,8 @@ export function AuthView({
   hasQuickConnect,
   hidePasswordForm,
   isExperimental,
-  onProfilePictureChange,
+  avatarId,
+  onAvatarChange,
   activeTab,
   setActiveTab,
   startPlexPinAuth,
@@ -315,10 +318,7 @@ export function AuthView({
       <TabsContent value="join" className="space-y-5">
         <form onSubmit={handleGuestLogin} className="space-y-3">
           <div className="flex justify-center pb-2">
-            <ProfilePicturePicker 
-                userName={guestName || "G"} 
-                onImageSelected={onProfilePictureChange}
-            />
+            <ProfileAvatarPicker value={avatarId} onChange={onAvatarChange} />
           </div>
           <CardDescription>Enter a display name {!sessionCodeParam ? 'and code' : ''} to continue</CardDescription>
           <Input

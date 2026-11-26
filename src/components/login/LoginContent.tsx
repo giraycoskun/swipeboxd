@@ -6,20 +6,20 @@ import { toast } from "sonner";
 import { useQuickConnectUpdates } from "@/lib/use-updates";
 import { usePlexPinAuth } from "@/hooks/usePlexPinAuth";
 import Image from "next/image";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import logoLight from "../../../public/favicon.svg"
 import logoDark from "../../../public/favicon-dark.svg"
 import { apiClient } from "@/lib/api-client";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { useRuntimeConfig } from "@/lib/runtime-config";
 import { passwordFormHidden } from "@/lib/login-mode";
+import type { MovieAvatarId } from "@/lib/movie-avatars";
 import { PROVIDER_CAPABILITIES, ProviderType } from "@/lib/providers/types";
 import { createPlexPinClient, buildPlexAuthUrl } from "@/lib/plex/client-auth";
 
 import { AdminInitializedView } from "./AdminInitializedView";
 import { AuthView } from "./AuthView";
 import { UniversalView } from "./UniversalView";
-import { SiPlex, SiJellyfin, SiThemoviedatabase, SiEmby } from "react-icons/si";
 import GradientText from "../ui/gradient-text";
 import { SecureContextCopyFallback } from "../SecureContextCopyFallback";
 
@@ -37,12 +37,14 @@ const NO_SEARCH_PARAMS: SearchParamsRecord = {};
 export default function LoginContent({ searchParams: initialSearchParams = NO_SEARCH_PARAMS }: LoginContentProps) {
   const { capabilities: initialCapabilities, basePath, provider, providerLock, providerUrls, hidePasswordLogin } = useRuntimeConfig();
 
-  const [selectedProvider, setSelectedProvider] = useState<string>(provider);
+  const [selectedProvider, setSelectedProvider] = useState<string>(providerLock ? provider : "");
 
   const capabilities = useMemo(() => {
     if (providerLock) return initialCapabilities;
     return PROVIDER_CAPABILITIES[selectedProvider as ProviderType] || initialCapabilities;
   }, [selectedProvider, providerLock, initialCapabilities]);
+  const isLetterboxd = selectedProvider === ProviderType.LETTERBOXD;
+  const isDisplayNameLogin = selectedProvider === ProviderType.TMDB || isLetterboxd;
 
   // Pre-fill the server URL placeholder with the admin-configured env var for the selected provider
   const serverUrlPlaceholder = useMemo(() => {
@@ -60,9 +62,10 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
   const [password, setPassword] = useState("");
   const [serverUrl, setServerUrl] = useState("");
   const [tmdbToken, setTmdbToken] = useState("");
+  const [watchlistUsername, setWatchlistUsername] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestSessionCode, setGuestSessionCode] = useState("");
-  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [avatarId, setAvatarId] = useState<MovieAvatarId | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [wasMadeAdmin, setWasMadeAdmin] = useState(false);
@@ -181,14 +184,14 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
     e.preventDefault();
     setLoading(true);
 
-    const isTmdbJoin = selectedProvider === ProviderType.TMDB && !!sessionCodeParam;
+    const isDisplayNameJoin = isDisplayNameLogin && !!sessionCodeParam;
 
     const promise = async () => {
-      if (isTmdbJoin) {
+      if (isDisplayNameJoin) {
         const res = await apiClient.post("/api/auth/guest", {
           username,
           sessionCode: sessionCodeParam,
-          profilePicture: profilePicture || undefined
+          avatarId: avatarId ?? undefined,
         });
         return res.data;
       }
@@ -198,21 +201,23 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
         if (serverUrl) config.serverUrl = serverUrl;
       } else if (selectedProvider === ProviderType.TMDB) {
         if (tmdbToken) config.tmdbToken = tmdbToken;
+      } else if (isLetterboxd) {
+        config.watchlistUsername = watchlistUsername.trim();
       }
 
       const res = await apiClient.post("/api/auth/login", {
         username,
-        password,
+        password: isDisplayNameLogin ? undefined : password,
         provider: providerLock ? undefined : selectedProvider,
         config: providerLock ? undefined : config,
-        profilePicture: profilePicture || undefined,
+        avatarId: avatarId ?? undefined,
       });
       return res.data;
 
     };
 
     toast.promise(promise(), {
-      loading: isTmdbJoin ? "Joining session..." : (selectedProvider !== ProviderType.TMDB ? "Logging in..." : "Initializing..."),
+      loading: isDisplayNameJoin ? "Joining session..." : (isDisplayNameLogin ? "Initializing..." : "Logging in..."),
       success: (data) => {
         if (data.wasMadeAdmin) {
           setWasMadeAdmin(true);
@@ -222,18 +227,18 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
         let callbackUrl = searchParams.get("callbackUrl");
         if (!callbackUrl) {
           callbackUrl = `${basePath}/`;
-          if (sessionCodeParam && !isTmdbJoin) {
+          if (sessionCodeParam && !isDisplayNameJoin) {
             callbackUrl += (callbackUrl.includes("?") ? "&" : "?") + `join=${sessionCodeParam}`;
           }
         }
         window.location.href = callbackUrl;
         setLoading(false);
-        if (isTmdbJoin) return `Joined as ${data.user.Name}`;
-        return selectedProvider !== ProviderType.TMDB ? "Logged in successfully" : "Profile created";
+        if (isDisplayNameJoin) return `Joined as ${data.user.Name}`;
+        return isDisplayNameLogin ? "Profile created" : "Logged in successfully";
       },
       error: (err) => {
         setLoading(false);
-        return { message: isTmdbJoin ? "Failed to join session" : "Login failed", description: getErrorMessage(err, isTmdbJoin ? undefined : "Check your credentials") };
+        return { message: isDisplayNameJoin ? "Failed to join session" : "Login failed", description: getErrorMessage(err, isDisplayNameLogin ? undefined : "Check your credentials") };
       },
       position: 'top-right'
     });
@@ -249,7 +254,7 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
       const res = await apiClient.post("/api/auth/guest", {
         username: guestName,
         sessionCode: code,
-        profilePicture: profilePicture || undefined
+        avatarId: avatarId ?? undefined,
       });
       return res.data;
     };
@@ -348,31 +353,33 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
           ) : (
             <div className="space-y-4">
               {!providerLock && (
-                <Tabs value={selectedProvider} onValueChange={setSelectedProvider} className="w-full">
-                  <TabsList className="grid w-full grid-cols-4 h-9">
-                    <TabsTrigger value={ProviderType.JELLYFIN} className="text-xs font-semibold">
-                      <SiJellyfin />
-                      Jellyfin
-                    </TabsTrigger>
-                    <TabsTrigger value={ProviderType.EMBY} className="text-xs font-semibold">
-                      <SiEmby />
-                      Emby
-                    </TabsTrigger>
-                    <TabsTrigger value={ProviderType.PLEX} className="text-xs font-semibold">
-                      <SiPlex />
-                      Plex
-                    </TabsTrigger>
-                    <TabsTrigger value={ProviderType.TMDB} className="text-xs font-semibold">
-                      <SiThemoviedatabase />
-                      TMDB
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
+                <div className="space-y-2">
+                  <label htmlFor="data-source" className="text-sm font-medium">Data source</label>
+                  <Select value={selectedProvider} onValueChange={(source) => {
+                    setSelectedProvider(source);
+                    setServerUrl("");
+                    setPassword("");
+                  }} disabled={loading}>
+                    <SelectTrigger id="data-source" className="w-full">
+                      <SelectValue placeholder="Choose a source" />
+                    </SelectTrigger>
+                    <SelectContent position="popper">
+                      <SelectItem value={ProviderType.JELLYFIN}>Jellyfin</SelectItem>
+                      <SelectItem value={ProviderType.LETTERBOXD}>Letterboxd watchlist</SelectItem>
+                      <SelectItem value={ProviderType.EMBY}>Emby</SelectItem>
+                      <SelectItem value={ProviderType.PLEX}>Plex</SelectItem>
+                      <SelectItem value={ProviderType.TMDB}>TMDB</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
 
-              {selectedProvider === ProviderType.TMDB ? (
+              {!selectedProvider ? null : isDisplayNameLogin ? (
                 <UniversalView
+                  isLetterboxd={isLetterboxd}
                   providerLock={providerLock}
+                  watchlistUsername={watchlistUsername}
+                  setWatchlistUsername={setWatchlistUsername}
                   tmdbToken={tmdbToken}
                   setTmdbToken={setTmdbToken}
                   username={username}
@@ -380,7 +387,8 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
                   loading={loading}
                   handleLogin={handleLogin}
                   isJoining={!!sessionCodeParam}
-                  onProfilePictureChange={setProfilePicture}
+                  avatarId={avatarId}
+                  onAvatarChange={setAvatarId}
                 />
               ) : (
                 <AuthView
@@ -413,7 +421,8 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
                     provider: selectedProvider,
                   })}
                   isExperimental={providerLock ? capabilities.isExperimental : selectedProvider === ProviderType.EMBY}
-                  onProfilePictureChange={setProfilePicture}
+                  avatarId={avatarId}
+                  onAvatarChange={setAvatarId}
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                   startPlexPinAuth={startPlexPinAuth}
@@ -430,4 +439,3 @@ export default function LoginContent({ searchParams: initialSearchParams = NO_SE
     </>
   );
 }
-

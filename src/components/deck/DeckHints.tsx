@@ -18,7 +18,7 @@ const HINTS = [
   { label: "Filters", keys: ["F"] },
 ] as const;
 
-export function DeckHints() {
+export function DeckHints({ showFilters = true }: { showFilters?: boolean }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function DeckHints() {
         visible ? "opacity-100" : "opacity-0 pointer-events-none"
       }`}
     >
-      {HINTS.map((hint) => (
+      {HINTS.filter((hint) => showFilters || hint.label !== "Filters").map((hint) => (
         <span key={hint.label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           {hint.label}
           {hint.keys.map((key) => (

@@ -13,7 +13,7 @@ interface DeckControlsProps {
   onRewind: () => void;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
-  onOpenFilter: () => void;
+  onOpenFilter?: () => void;
   canRewind: boolean;
   hasAppliedFilters: boolean;
   leftSwipesRemaining?: number;
@@ -72,17 +72,19 @@ export function DeckControls({
           </Badge>
         )}
       </Button>
-      <Button
-        size="icon"
-        variant="secondary"
-        className="h-12 w-12 rounded-none bg-background/50 border-2 relative"
-        onClick={onOpenFilter}
-      >
-        <SlidersHorizontal className="size-5.5" />
-        {hasAppliedFilters && (
-          <span className="rounded-none bg-foreground absolute top-0 right-0 size-3.5 border-2 border-background animate-in zoom-in duration-300" />
-        )}
-      </Button>
+      {onOpenFilter && (
+        <Button
+          size="icon"
+          variant="secondary"
+          className="h-12 w-12 rounded-none bg-background/50 border-2 relative"
+          onClick={onOpenFilter}
+        >
+          <SlidersHorizontal className="size-5.5" />
+          {hasAppliedFilters && (
+            <span className="rounded-none bg-foreground absolute top-0 right-0 size-3.5 border-2 border-background animate-in zoom-in duration-300" />
+          )}
+        </Button>
+      )}
     </div>
   );
 }

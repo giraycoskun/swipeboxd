@@ -13,7 +13,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 
-export function DeckError() {
+export function DeckError({ isLetterboxd }: { isLetterboxd?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-top h-[83vh] text-center text-muted-foreground ">
       <Empty className="from-muted/50 to-background h-full w-full bg-linear-to-b from-30% max-h-[67vh] mt-10 rounded-3xl">
@@ -21,9 +21,9 @@ export function DeckError() {
           <EmptyMedia variant="icon">
             <CardsThree className="rotate-[270deg]" />
           </EmptyMedia>
-          <EmptyTitle className="text-foreground">Something unexpected happened.</EmptyTitle>
+          <EmptyTitle className="text-foreground">{isLetterboxd ? "Could not load the Letterboxd watchlist." : "Something unexpected happened."}</EmptyTitle>
           <EmptyDescription>
-            Reload the page to try again.
+            {isLetterboxd ? "Make sure the watchlist exists and is public, then reload." : "Reload the page to try again."}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

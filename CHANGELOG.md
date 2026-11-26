@@ -1,10 +1,8 @@
 # Changelog
 
-> **This file is historical.** From 1.7.0 on, releases are cut by semantic-release from the commits on
-> `master`, so the authoritative changelog — with notes, diffs and images for every version — is
-> **[GitHub Releases](https://github.com/jakobbjelver/messer-swipe/releases)**. The hand-written entries
-> below stop at 1.0.3 (when the project was called Swiparr) and are kept as history, not as a current
-> version list.
+> The unreleased Swipeboxd features are listed under **Unreleased**. For upstream Messer Swipe release notes,
+> see [upstream GitHub Releases](https://github.com/jakobbjelver/messer-swipe/releases). The numbered
+> hand-written entries below are historical Swiparr releases.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -12,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
--
+- **Data source picker and Letterboxd watchlists:** When provider choice is enabled, users pick a source
+  at sign-in and can enter a Letterboxd username to swipe on its public watchlist. No Letterboxd or TMDB
+  key is needed for Letterboxd. Likes and passes stay in Swipeboxd. See [setup](docs/configuration.md#letterboxd-watchlist-setup).
 
 ### Changed
+- **Movie avatar collection:** Choose an original movie-themed avatar at sign-in, when joining as a
+  guest, or in profile settings. New profile-picture uploads are no longer accepted; existing pictures stay until changed.
 - **CSP headers moved to middleware**: Content-Security-Policy is now built entirely in `proxy.ts` instead of `next.config.ts`, enabling runtime env vars like `CSP_FRAME_ANCESTORS` to take effect. `next.config.ts` `headers()` runs AFTER middleware in Next.js, so the CSP must be set in the middleware to avoid being overwritten.
 - **X-Frame-Options auto-syncs with CSP_FRAME_ANCESTORS**: When `CSP_FRAME_ANCESTORS` is set to a value that allows iframing (e.g., `'self'`), `X-Frame-Options` is automatically set to `SAMEORIGIN` to avoid conflicting with the permissive `frame-ancestors` directive. Explicit `X_FRAME_OPTIONS` or `DISABLED` overrides still work.
 

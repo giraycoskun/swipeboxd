@@ -8,6 +8,7 @@ import { getRuntimeConfig } from "@/lib/runtime-config";
 import { SessionService } from "@/lib/services/session-service";
 import { logger } from "@/lib/logger";
 import { handleApiError } from "@/lib/api-utils";
+import { saveProfileAvatar } from "@/lib/server/profile-picture";
 
 export async function POST(request: NextRequest) {
     const { capabilities } = getRuntimeConfig();
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: "Invalid input" }, { status: 400 });
         }
 
-        const { username, sessionCode, profilePicture } = validated.data;
+        const { username, sessionCode, avatarId } = validated.data;
 
         const { user, code } = await SessionService.loginGuest(username, sessionCode, capabilities);
         
@@ -30,14 +31,11 @@ export async function POST(request: NextRequest) {
         session.isLoggedIn = true;
         session.sessionCode = code;
 
-        if (profilePicture) {
+        if (avatarId) {
             try {
-                const { saveProfilePicture } = await import("@/lib/server/profile-picture");
-                const base64Data = profilePicture.replace(/^data:image\/\w+;base64,/, "");
-                const buffer = Buffer.from(base64Data, 'base64');
-                await saveProfilePicture(user.Id, buffer, "image/webp");
+                await saveProfileAvatar(user.Id, avatarId);
             } catch (e) {
-                logger.error("[Guest Auth] Failed to save profile picture:", e);
+                logger.error("[Guest Auth] Failed to save avatar:", e);
             }
         }
 

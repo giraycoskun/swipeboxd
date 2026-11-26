@@ -4,6 +4,7 @@ import { JellyfinProvider } from "./jellyfin/index";
 import { TmdbProvider } from "./tmdb/index";
 import { PlexProvider } from "./plex/index";
 import { EmbyProvider } from "./emby/index";
+import { LetterboxdProvider } from "./letterboxd";
 
 class ProviderFactory {
   private static instance: MediaProvider;
@@ -38,6 +39,8 @@ class ProviderFactory {
         return new PlexProvider();
       case ProviderType.EMBY:
         return new EmbyProvider();
+      case ProviderType.LETTERBOXD:
+        return new LetterboxdProvider();
       default:
         console.warn(`Unknown provider: ${type}, defaulting to Jellyfin`);
         return new JellyfinProvider();

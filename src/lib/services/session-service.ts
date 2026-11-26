@@ -10,6 +10,9 @@ import { resolveSwipeKind } from "@/lib/media-kind";
 import { ConfigService } from "./config-service";
 import { logger } from "@/lib/logger";
 import { encryptValue, getGuestLendingSecret } from "@/lib/security/crypto";
+import { config } from "@/lib/config";
+
+export class WatchlistMismatchError extends Error {}
 
 export class SessionService {
   private static generateCode(): string {
@@ -75,6 +78,12 @@ export class SessionService {
         const userConfig = user.providerConfig || {};
         if (sessionConfig.serverUrl !== userConfig.serverUrl) {
           throw new Error(`Server mismatch: Session is on ${sessionConfig.serverUrl}, you are on ${userConfig.serverUrl}`);
+        }
+      }
+      if (existingSession.provider === ProviderType.LETTERBOXD && !config.app.providerLock) {
+        const sessionConfig = existingSession.providerConfig ? JSON.parse(existingSession.providerConfig) : {};
+        if (sessionConfig.watchlistUrl !== user.providerConfig?.watchlistUrl) {
+          throw new WatchlistMismatchError("Choose the host's Letterboxd watchlist to join this session.");
         }
       }
     }
@@ -143,11 +152,11 @@ export class SessionService {
       throw new Error("Session not found");
     }
 
-    if (capabilities.hasAuth && !existingSession.hostAccessToken) {
+    const isGuest = existingSession.provider !== ProviderType.LETTERBOXD && capabilities.hasAuth;
+    if (isGuest && !existingSession.hostAccessToken) {
       throw new Error("This session does not allow guest lending");
     }
 
-    const isGuest = capabilities.hasAuth;
     const guestId = `${isGuest ? "guest" : "user"}-${uuidv4()}`;
 
     const user = {
@@ -173,7 +182,7 @@ export class SessionService {
   static async leaveSession(user: SessionData["user"], sessionCode: string) {
     const userId = user.Id;
     
-    if (user.isGuest || user.provider === ProviderType.TMDB) {
+    if (user.isGuest || user.provider === ProviderType.TMDB || user.provider === ProviderType.LETTERBOXD) {
       try {
         await db.delete(userProfiles).where(eq(userProfiles.userId, userId));
       } catch (e) {

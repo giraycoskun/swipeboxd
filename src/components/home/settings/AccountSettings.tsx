@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Shield,
   UserPlus,
@@ -8,10 +9,11 @@ import {
 import { SettingsSection } from "./SettingsSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { SmoothAvatar } from "@/components/ui/smooth-avatar";
 import { useSession } from "@/hooks/api";
 import { useRuntimeConfig } from "@/lib/runtime-config";
-import { ProfilePicturePicker } from "../../profile/ProfilePicturePicker";
+import { ProfileAvatarPicker } from "../../profile/ProfileAvatarPicker";
+import type { MovieAvatarId } from "@/lib/movie-avatars";
 import { apiClient } from "@/lib/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserStore } from "@/lib/user-store";
@@ -21,7 +23,8 @@ export function AccountSettings() {
     const { data: sessionStatus, isLoading } = useSession();
     const runtimeConfig = useRuntimeConfig();
     const queryClient = useQueryClient();
-    const { notifyProfileUpdate, profileUpdateTicket } = useUserStore();
+    const { notifyProfileUpdate } = useUserStore();
+    const [avatarId, setAvatarId] = useState<MovieAvatarId | null>(null);
 
 
     if (isLoading || !sessionStatus) {
@@ -42,35 +45,22 @@ export function AccountSettings() {
     const { capabilities, provider: runtimeProvider } = runtimeConfig;
     const activeProvider = provider || runtimeProvider;
 
-    const handleUpload = async (file: File) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        await apiClient.post("/api/user/profile-picture", formData);
-        // Refresh session/images
+    const handleAvatarChange = async (id: MovieAvatarId | null) => {
+        if (id) await apiClient.post("/api/user/profile-picture", { avatarId: id });
+        else await apiClient.delete("/api/user/profile-picture");
+        setAvatarId(id);
         queryClient.invalidateQueries({ queryKey: ["session"] });
         notifyProfileUpdate();
     };
-
-    const handleDelete = async () => {
-        await apiClient.delete("/api/user/profile-picture");
-        // Refresh session/images
-        queryClient.invalidateQueries({ queryKey: ["session"] });
-        notifyProfileUpdate();
-    };
-
-    const profileImageUrl = `/api/user/profile-picture/${userId}?v=${profileUpdateTicket}`;
 
     return (
         <SettingsSection title="Profile">
             <div className="flex items-center gap-4 p-3 rounded-lg border bg-muted/50">
-                <ProfilePicturePicker 
-                    currentImage={profileImageUrl}
-                    hasCustomImage={hasCustomProfilePicture}
-                    allowProviderFallback={!!capabilities.hasAuth}
-                    userName={userName}
-                    onUpload={handleUpload}
-                    onDelete={handleDelete}
-                    size="sm"
+                <ProfileAvatarPicker
+                    value={avatarId}
+                    onChange={handleAvatarChange}
+                    canReset={hasCustomProfilePicture}
+                    fallback={<SmoothAvatar className="size-full" userId={userId} userName={userName} hasImage={hasCustomProfilePicture} />}
                 />
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">

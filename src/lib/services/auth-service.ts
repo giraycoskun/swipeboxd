@@ -30,6 +30,7 @@ export class AuthService {
         serverUrl: session.user?.providerConfig?.serverUrl,
         machineId: session.user?.providerConfig?.machineId,
         tmdbToken: session.user?.providerConfig?.tmdbToken,
+        watchlistUrl: session.user?.providerConfig?.watchlistUrl,
         provider: session.user?.provider,
         watchRegion
       };
