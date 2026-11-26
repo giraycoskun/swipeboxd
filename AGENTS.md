@@ -1,31 +1,45 @@
-# AGENTS.md — Messer Swipe
+# AGENTS.md — Swipeboxd
 
-Agent contract for this repo. The product is **Messer Swipe**: a swipe deck over a Jellyfin, Emby,
-Plex or TMDB library. Project skill: **`swiparr`** (load it first — it carries the live traps).
+Agent contract for this repo. The product is **Swipeboxd**: a personal fork of
+**Messer Swipe** — a swipe deck over a Jellyfin, Emby, Plex, TMDB or Letterboxd
+watchlist library. This fork exists for Giray's own viewing: the upstream's
+server estate, demo host and release automation do not run here, but the
+upstream architecture is kept intact so `master` can always be fast-forwarded
+from `jakobbjelver/messer-swipe`.
 
 ## What this is
 
-A single-user-ish Next.js app that turns a media library into a Tinder-like deck, solo or in a group
-session. One repo, one deployable container (`ghcr.io/jakobbjelver/messer-swipe`), one stack in
-Komodo (`video-stack`). Providers are interchangeable behind one interface; a Jellyfin instance can
-also mix TMDB streaming catalogues into the same deck ("hybrid").
+The same single-user-ish Next.js app as upstream, with fork additions that stay
+inside upstream's provider contract:
+
+- a **data source picker** at sign-in when the provider is not locked;
+- a **Letterboxd watchlist** provider that needs only a public watchlist
+  username — no Letterboxd or TMDB key;
+- a **movie avatar collection** instead of profile-picture uploads.
+
+One repo, one image built from this Dockerfile (the compose example still shows
+upstream's registry), one stack.
 
 ## Read first
 
 | File | Why |
 |---|---|
 | `MESSER.md` | UI adoption record: brand, canon version, deviations |
-| `.github/CONTRIBUTING.md` | commit conventions (semantic-release reads them) |
+| `.github/CONTRIBUTING.md` | commit conventions (conventional commits) |
 | `AGENTS.md` (this file) | invariants and commands |
-| `PROJECT.yaml` | machine-readable facts the audit cross-checks |
-| `.hermes/plans/` | the shows/2.0 programme and its execution log |
+| `docs/configuration.md` | setup, including Letterboxd watchlist mode |
+| `docs/maintaining.md` | the maintenance engine (upstream doc; sensors and applier) |
+
+`PROJECT.yaml` and `skills/messer-swipe/SKILL.md` describe the **upstream**
+estate (deploy host, image registry, service paths). Read them for provider
+traps and verification recipes, but their host facts are not this fork's.
 
 ## Layout
 
 ```
 src/app/            routes: deck (/), login, /ui sink, /healthz, /readyz, api/*
 src/components/     deck, movie, shows, session, likes, settings, ui (shadcn atoms, local)
-src/lib/providers/  jellyfin | emby | plex | tmdb + factory, item-source, mappers
+src/lib/providers/  jellyfin | emby | plex | tmdb | letterboxd + factory, item-source, mappers
                     (map.ts is provider-free on purpose: unit tests import it)
 src/lib/services/   media-service (deck assembly), session-service, auth-service
 src/lib/            pure helpers with their own *.test.ts siblings
@@ -49,9 +63,9 @@ npm run db:migrate         # apply migrations (tsx)
 npm run db:generate        # new migration from schema changes
 ```
 
-The canonical dev server is the Portal action (`actions/actions.json`, PM2 `messer-swipe-dev`) on
-`dev-server.messer.wtf`; it overrides `JELLYFIN_URL` with the OrbStack name because a host process
-cannot resolve Docker service names.
+A Letterboxd-only instance runs with `PROVIDER=jellyfin PROVIDER_LOCK=false`
+and no provider credentials: pick "Letterboxd watchlist" at sign-in and enter a
+public watchlist username.
 
 ## Invariants
 
@@ -61,6 +75,7 @@ cannot resolve Docker service names.
    provider the bare one. Stripping first resolves a series to the film that shares its numeric id.
 3. **A provider declares a capability only when its adapter exists.** `hasSeries`, `hasSeasons`,
    `hasProgress`, `hasNextUp` gate deck modes; a premature `true` renders an empty deck with no error.
+   Letterboxd runs with every capability `false` on purpose.
 4. **`deckMode` is derived, filter chips are not.** Storage carries `deckMode` + `kinds`; read them
    through `deckModeOf()` / `withDeckDefaults()` (`src/lib/deck-mode.ts`).
 5. **Every provider is reachable only through the factory**, and the session's provider is the source
@@ -88,13 +103,26 @@ cannot resolve Docker service names.
     bearer check, the envelope and the audit row; `bin/messer-swipe.mjs` is the only client shipped
     here, and the token it uses is minted by the container at first admin login. The UI's `/api/*`
     stays private; a new capability means a new `/api/v1` handler, not a second implementation.
+14. **The Letterboxd source reads only the public watchlist grid.** The URL is built only by
+    `watchlistUrlFromUsername()` and validated by `watchlistUrl()` (`src/lib/providers/letterboxd/map.ts`),
+    through `assertSafeUrl`; it follows only the watchlist's own next page and never accepts a
+    client-supplied Letterboxd URL.
+15. **Profile pictures are catalog avatars, not uploads.** `/api/user/profile-picture` accepts only
+    JSON `{ avatarId }` from `MOVIE_AVATAR_IDS` (`src/lib/movie-avatars.ts`) and rasterises that known
+    SVG itself; multipart is refused with 415, unknown ids with 400, and a legacy base64 field is
+    stripped by Zod before it can reach the database.
 
 ## Working rules
 
-- Commits follow `.github/CONTRIBUTING.md`. `fix:` only for the first attempt at a bug; iterations use
-  `chore:`, `refactor:` or `chore(fix):` — each `fix:` publishes a release on `master`.
-- Branch: `develop` is the working branch, `master` releases. Never commit to `master` by hand.
-- Commit as Jakob (`Jakob Bjelvér <jakobbjelver@gmail.com>`); Vercel only builds his commits.
+- Commits follow `.github/CONTRIBUTING.md` (conventional commits). `feat:`/`fix:` on `master` are
+  what this fork's manual releases are cut from; iterations on a feature branch use `chore:` or
+  `refactor:`.
+- Branch: `dev` is the working branch, `master` releases, features branch off `dev`. Never commit to
+  `master` by hand. Commits are the owner's (Giray) or the assistant identity — never upstream
+  authorship; the "commit as Jakob" rule belongs to upstream, whose Vercel build it serves.
+- **Syncing with upstream:** fast-forward `master` from `jakobbjelver/messer-swipe`, rebase `dev`
+  onto it, and compare diffs before pushing to the fork. Fork additions (data source picker,
+  Letterboxd provider, avatars, this file) must keep upstream's contracts so the merge stays clean.
 - After changing a provider or the deck service, prove it through `/api/media/items` — a helper
   having a test is not evidence the deck uses it.
 - **UI changes are proven with `npm run e2e`**, which answers the media API from fixtures and asserts
@@ -102,23 +130,11 @@ cannot resolve Docker service names.
   a whole row that toggles, a sheet with no shadow). It writes screenshots to `e2e/shots/`. A visual
   fix reported without this is a guess.
 - Never accept a credential in chat; ask for a revocable token.
-- Public communication (release notes, catalog PRs) is drafted for approval first.
 
 ## Where the depth is
 
-- **Project skill `swiparr`** — provider traps, deploy and release flow, live verification recipes.
+- **Project skill `skills/messer-swipe/SKILL.md`** — provider traps, deploy and release flow, live
+  verification recipes (written for upstream; the traps transfer, the hosts do not).
 - `MESSER.md` — UI deviations with dates and exits.
-- `.hermes/plans/2026-11-10_0015-messer-swipe-programme.md` — 2.0 scope and decisions.
-- `CONTRIBUTING.md` — commit and review conventions.
-- `docs/maintaining.md` — the maintenance engine (sensors, brief, approval, applier) and the three
-  things that break silently.
-
-<!-- BEGIN:nextjs-agent-rules -->
-
-## This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+- `docs/configuration.md` — Letterboxd watchlist setup and every provider's env vars.
+- `docs/maintaining.md` — the maintenance engine (sensors, brief, approval, applier).
