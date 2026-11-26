@@ -49,6 +49,9 @@ docker run -d \
 Then open `http://localhost:4321`. Or build it yourself: `npm ci && npm run build && npm start` after
 `npm run db:migrate` (`make docker` builds the image the CI publishes).
 
+Full walkthrough — Oracle Cloud free tier, Docker, Caddy HTTPS and the Actions
+deploy pipeline — is in [`docs/deployment.md`](docs/deployment.md).
+
 The example above uses the upstream image. To run your own changes, [publish a tagged Swipeboxd
 image](docs/maintaining.md#publish-a-swipeboxd-image) and use that image instead.
 

@@ -107,4 +107,58 @@ jobs:
           for digest in *; do
             sources+=("$image@sha256:$digest")
           done
-          docker buildx imagetools create --tag "$image:$GITHUB_REF_NAME" "${sources[@]}"
+          docker buildx imagetools create --tag "$image:$GITHUB_REF_NAME" --tag "$image:latest" "${sources[@]}"
+
+  # Pull the freshly published tag onto the VPS and restart. Runs only when the
+  # deployment variables exist (repo Variables → DEPLOY_HOST/DEPLOY_USER/DEPLOY_PORT),
+  # so the same workflow stays usable before a server exists.
+  deploy:
+    name: Deploy to the VPS
+    needs: merge
+    runs-on: ubuntu-latest
+    if: vars.DEPLOY_HOST != ''
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Pull and restart over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          SSH_USER: ${{ vars.DEPLOY_USER || 'deploy' }}
+          SSH_HOST: ${{ vars.DEPLOY_HOST }}
+          IMAGE_TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # accept-new pins the host key after the first contact; swap in a
+          # DEPLOY_HOST_KEY secret pinned to the known_hosts line for stricter trust.
+          ssh -i ~/.ssh/deploy_key \
+              -o StrictHostKeyChecking=accept-new \
+              -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+              "set -eu
+               cd /opt/swipeboxd
+               docker compose pull
+               docker compose up -d --remove-orphans
+               docker image prune -f
+               echo 'deployed'" 2>&1 | sed 's/^/  /'
+      - name: Verify the new version answers
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          SSH_USER: ${{ vars.DEPLOY_USER || 'deploy' }}
+          SSH_HOST: ${{ vars.DEPLOY_HOST }}
+          IMAGE_TAG: ${{ github.ref_name }}
+        run: |
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          for i in $(seq 1 60); do
+            VERSION=$(ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+              "curl -fs http://localhost:4321/api/version" 2>/dev/null | sed -n 's/.*"version":"\([^"]*\)".*/\1/p') || true
+            if [ "$VERSION" = "${IMAGE_TAG#v}" ]; then
+              echo "the VPS now answers version $VERSION"; exit 0
+            fi
+            sleep 2
+          done
+          echo "the server did not report $IMAGE_TAG within 2 minutes"; exit 1

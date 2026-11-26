@@ -6,7 +6,7 @@ name: docker smoke
 
 on:
   push:
-    branches: [develop, master]
+    branches: [dev, main]
     paths:
       - "Dockerfile"
       - "bin/**"
