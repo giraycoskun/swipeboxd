@@ -4,7 +4,6 @@ import { Golos_Text, JetBrains_Mono } from 'next/font/google'
 import { Providers } from '@/components/providers'
 import { getAsyncRuntimeConfig } from '@/lib/server/runtime-config'
 import { TouchProvider } from '@/components/ui/hybrid-tooltip'
-import { Analytics } from "@vercel/analytics/next"
 import { config as appConfig } from "@/lib/config";
 import { Suspense } from 'react';
 import { RuntimeConfigScript } from '@/components/RuntimeConfigScript';
@@ -84,8 +83,6 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const useAnalytics = appConfig.USE_ANALYTICS
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -95,8 +92,6 @@ export default async function RootLayout({
         </Suspense>
       </head>
       <body className={`${sansFlex.variable} ${jetbrainsMono.variable} overflow-y-hidden`}>
-        {useAnalytics && <Analytics/>}
-
         <Providers
           attribute="class"
           storageKey="messer-theme"

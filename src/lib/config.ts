@@ -69,7 +69,6 @@ const envSchema = z.object({
   X_FRAME_OPTIONS: z.string().default('DENY'),
   CSP_FRAME_ANCESTORS: z.string().default('none'),
 
-  USE_ANALYTICS: z.preprocess((val) => val === 'true', z.boolean()).default(false),
   ENABLE_DEBUG: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
   USE_STATIC_FILTERS: z.preprocess((val) => val === 'true', z.boolean()).default(false),
 });

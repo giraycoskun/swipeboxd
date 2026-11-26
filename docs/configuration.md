@@ -104,7 +104,6 @@ PLEX_IMAGE_ALLOWED_HOSTS=plex.example.com,*.plex.direct  # Optional extra image 
 PROVIDER_LOCK=false                          # Let users choose and configure their own provider
 
 # Misc
-USE_ANALYTICS=false                          # Enable anonymous usage analytics (Vercel deployments)
 ENABLE_DEBUG=false                           # Enable verbose debug logging and client-server error mapping
 USE_STATIC_FILTERS=false                     # Skip dynamic filter fetching; use built-in genre/year/rating lists instead (useful for very large libraries where filter API calls time out)
 
@@ -148,7 +147,6 @@ IMAGE_TIMEOUT_MS=12000                       # Per-image timeout; a timed-out im
 | `CSP_FRAME_ANCESTORS`|  | `none` | Security header: Content-Security-Policy frame-ancestors |
 | `ALLOW_PRIVATE_PROVIDER_URLS` |  | `false` | Allow private/LAN provider URLs for BYOP user inputs |
 | `PLEX_IMAGE_ALLOWED_HOSTS` |  | - | Extra allowlist for Plex image hosts (comma-separated). `PLEX_URL`/`PLEX_PUBLIC_URL` are allowed by default. |
-| `USE_ANALYTICS` |  | `false` | Enable anonymous usage analytics (Vercel deployments) |
 | `ENABLE_DEBUG` |  | `false` | Enable verbose debug logging and client-server error mapping |
 | `USE_STATIC_FILTERS` |  | `false` | Skip dynamic filter fetching and use built-in genre/year/rating lists. Useful for very large libraries where filter API calls time out. |
 | `AGENT_API` |  | - | Set to `off` to disable the agent API (`/api/v1/*` and the in-image CLI) without deleting tokens. See [Agents](agents.md). |
