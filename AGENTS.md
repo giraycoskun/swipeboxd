@@ -4,8 +4,8 @@ Agent contract for this repo. The product is **Swipeboxd**: a personal fork of
 **Messer Swipe** — a swipe deck over a Jellyfin, Emby, Plex, TMDB or Letterboxd
 watchlist library. This fork exists for Giray's own viewing: the upstream's
 server estate, demo host and release automation do not run here, but the
-upstream architecture is kept intact so `master` can always be fast-forwarded
-from `jakobbjelver/messer-swipe`.
+upstream architecture is kept intact so `main` can always be fast-forwarded
+from upstream's `master`.
 
 ## What this is
 
@@ -114,14 +114,14 @@ public watchlist username.
 
 ## Working rules
 
-- Commits follow `.github/CONTRIBUTING.md` (conventional commits). `feat:`/`fix:` on `master` are
-  what this fork's manual releases are cut from; iterations on a feature branch use `chore:` or
+- Commits follow `.github/CONTRIBUTING.md` (conventional commits). `feat:`/`fix:` merged into `main`
+  are what this fork's manual releases are cut from; iterations on a feature branch use `chore:` or
   `refactor:`.
-- Branch: `dev` is the working branch, `master` releases, features branch off `dev`. Never commit to
-  `master` by hand. Commits are the owner's (Giray) or the assistant identity — never upstream
+- Branch: `dev` is the working branch, `main` releases, features branch off `dev`. Never commit to
+  `main` by hand. Commits are the owner's (Giray) or the assistant identity — never upstream
   authorship; the "commit as Jakob" rule belongs to upstream, whose Vercel build it serves.
-- **Syncing with upstream:** fast-forward `master` from `jakobbjelver/messer-swipe`, rebase `dev`
-  onto it, and compare diffs before pushing to the fork. Fork additions (data source picker,
+- **Syncing with upstream:** fast-forward `main` from `jakobbjelver/messer-swipe`'s `master`, rebase
+  `dev` onto it, and compare diffs before pushing to the fork. Fork additions (data source picker,
   Letterboxd provider, avatars, this file) must keep upstream's contracts so the merge stays clean.
 - After changing a provider or the deck service, prove it through `/api/media/items` — a helper
   having a test is not evidence the deck uses it.

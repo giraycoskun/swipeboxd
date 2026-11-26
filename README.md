@@ -15,7 +15,7 @@
 > Giray runs it for his own viewing: the additions here are a **data source picker** at sign-in, a
 > **Letterboxd watchlist** source that needs only a public watchlist username (no API keys), and
 > **movie-themed avatars** instead of profile-picture uploads. Everything else tracks upstream so
-> `master` can be fast-forwarded from it — upstream's architecture, docs and release notes below
+> `main` can be fast-forwarded from it — upstream's architecture, docs and release notes below
 > describe the shared product; the fork's own contract is in [`AGENTS.md`](AGENTS.md).
 
 Swipe turns "what should we watch?" into a deck everyone can agree on. One person creates a session, the
@@ -143,7 +143,7 @@ fetch has a timeout, and a failure is a `504` the card retries — never a cache
 Active — as Giray's personal instance. The supported path is Jellyfin and TMDB; Emby and Plex work and
 are labelled experimental because their libraries differ in ways that still surprise the deck. The
 fork's own additions (Letterboxd watchlists, avatars, the source picker) are developed on `dev` and
-released to `master` manually; upstream's demo, image registry and issue tracker are not this fork's.
+released to `main` manually; upstream's demo, image registry and issue tracker are not this fork's.
 
 ## License
 
