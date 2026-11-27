@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+-
+
+## [2.7.0] - 2026-11-27
+
 ### Added
 - **Data source picker and Letterboxd watchlists:** When provider choice is enabled, users pick a source
   at sign-in and can enter a Letterboxd username to swipe on its public watchlist. No Letterboxd or TMDB
@@ -17,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Movie avatar collection:** Choose an original movie-themed avatar at sign-in, when joining as a
   guest, or in profile settings. New profile-picture uploads are no longer accepted; existing pictures stay until changed.
+- **No analytics or telemetry ships in the app:** the `@vercel/analytics` dependency and the
+  `USE_ANALYTICS` flag are removed, and local builds disable Next.js telemetry.
+- **Docker deploy pipeline:** a release tag builds native amd64 and arm64 images, publishes
+  `ghcr.io/giraycoskun/swipeboxd`, and can deploy to a configured VPS over SSH. See [deployment](docs/deployment.md).
 - **CSP headers moved to middleware**: Content-Security-Policy is now built entirely in `proxy.ts` instead of `next.config.ts`, enabling runtime env vars like `CSP_FRAME_ANCESTORS` to take effect. `next.config.ts` `headers()` runs AFTER middleware in Next.js, so the CSP must be set in the middleware to avoid being overwritten.
 - **X-Frame-Options auto-syncs with CSP_FRAME_ANCESTORS**: When `CSP_FRAME_ANCESTORS` is set to a value that allows iframing (e.g., `'self'`), `X-Frame-Options` is automatically set to `SAMEORIGIN` to avoid conflicting with the permissive `frame-ancestors` directive. Explicit `X_FRAME_OPTIONS` or `DISABLED` overrides still work.
 
